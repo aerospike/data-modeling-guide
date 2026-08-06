@@ -1,0 +1,110 @@
+# =============================================================================
+# Standard CI/CD Pipeline (artifacts)
+# =============================================================================
+#
+# This workflow uses the shared-workflows orchestrator to handle the full
+# build -> sign -> deploy lifecycle. Uncomment the jobs below to enable.
+#
+# WHEN TO USE THIS:
+#   Choose this if you want a single workflow call that handles everything.
+#   You provide a build script and configuration; the orchestrator does the rest.
+#
+# WHEN TO USE cicd-composable.yaml INSTEAD:
+#   Choose composable if you need custom steps between pipeline stages
+#   (e.g., integration tests after build but before signing).
+#
+# GETTING STARTED:
+#   1. Replace the triggers and no-op job below with the commented-out pipeline
+#   2. Replace the dummy build-script with your actual build commands
+#   3. Run setup.sh to replace template values, or edit them manually
+#   4. Edit setup-github-protection.sh to add your CI/CD check name
+#      to the CHECKS variable, then re-run it to update the ruleset
+#
+# DOCS:
+#   Standard pipeline:  https://github.com/aerospike/shared-workflows/blob/main/.github/workflows/docs/CICD-standard.md
+#   Matrix builds:      https://github.com/aerospike/shared-workflows/blob/main/.github/workflows/docs/artifacts-cicd-matrix.schema.json
+#   Full example:       https://github.com/aerospike/shared-workflows/blob/main/.github/workflows/example_artifacts-cicd.yaml
+#
+# ADVANCED OPTIONS (add to the cicd job when needed):
+#
+#   Multi-platform matrix builds:
+#       matrix-json: >-
+#         {"include":[
+#           {"runs-on":"ubuntu-22.04","distro":"jammy","arch":"x86_64"},
+#           {"runs-on":"ubuntu-22.04","distro":"el9","arch":"x86_64"}
+#         ]}
+#
+#   Java/Maven setup:
+#       setup-java: true
+#       java-version: "21"
+#       java-distribution: temurin
+#       java-cache: maven
+#       jar-group-id: com.aerospike
+#
+#   Dotnet setup:
+#       setup-dotnet: true
+#       dotnet-version: "8.0"
+
+name: CI/CD (artifacts)
+
+on: workflow_dispatch
+
+jobs:
+  noop:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
+# -------- REPLACE THE ABOVE WITH THE PIPELINE BELOW TO ENABLE --------
+#
+# on:
+#   push:
+#     branches: [main]
+#     tags: [v*]
+#   pull_request:
+#     branches: [main]
+#   workflow_dispatch:
+#
+# permissions:
+#   contents: read
+#   id-token: write
+#
+# jobs:
+#   extract-version:
+#     runs-on: ubuntu-latest
+#     outputs:
+#       version: ${{ steps.extract.outputs.version }}
+#     steps:
+#       - name: Harden the runner (Audit all outbound calls)
+#         uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+#         with:
+#           egress-policy: audit
+#
+#       - name: Checkout
+#         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#
+#       - name: Extract version
+#         id: extract
+#         uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@7f633569d89f706899e6b8f2151a3b200576c1fd # v3.1.1
+#
+#   cicd:
+#     needs: extract-version
+#     uses: aerospike/shared-workflows/.github/workflows/reusable_artifacts-cicd.yaml@7f633569d89f706899e6b8f2151a3b200576c1fd # v3.1.1
+#     with:
+#       gh-workflows-ref: 7f633569d89f706899e6b8f2151a3b200576c1fd # v3.1.1
+#       jf-project: test
+#       jf-build-name: test-build
+#       version: ${{ needs.extract-version.outputs.version }}
+#       gh-artifact-directory: dist
+#       oidc-provider-name: gh-dev-test
+#       oidc-audience: aerospike/testing
+#       dry-run: ${{ github.event_name == 'pull_request' }}
+#       build-script: |
+#         set -euo pipefail
+#         echo "Building version: ${{ needs.extract-version.outputs.version }}"
+#         mkdir -p dist
+#         echo "hello-world" > dist/hello-world.txt
+#     secrets:
+#       gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
+#       gpg-public-key: ${{ secrets.GPG_PUBLIC_KEY }}
+#       gpg-key-pass: ${{ secrets.GPG_PASS }}

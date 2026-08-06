@@ -1,0 +1,168 @@
+# =============================================================================
+# Composable CI/CD Pipeline (artifacts)
+# =============================================================================
+#
+# This workflow calls the shared-workflows building blocks individually, giving
+# you full control over the pipeline stages. Uncomment the jobs below to enable.
+#
+# WHEN TO USE THIS:
+#   Choose this if you need custom steps between pipeline stages -- for example,
+#   integration tests after build but before signing, or parallel deploys to
+#   multiple targets.
+#
+# WHEN TO USE cicd-standard.yaml INSTEAD:
+#   Choose standard if a single orchestrated call (build -> sign -> deploy)
+#   with no custom steps in between is sufficient.
+#
+# PIPELINE FLOW:
+#   extract-version -> build -> collect -> [your tests] -> sign -> deploy
+#
+# BUILD-ID SCHEME:
+#   Per-build metadata:  {run_id}-{run_attempt}-buildinfo-{unique-suffix}
+#   Deploy parent:       {run_id}-{run_attempt}
+#   Metadata prefix:     {run_id}-{run_attempt}-buildinfo
+#
+# GETTING STARTED:
+#   1. Replace the triggers and no-op job below with the commented-out pipeline
+#   2. Replace the dummy build-script with your actual build commands
+#   3. Run setup.sh to replace template values, or edit them manually
+#   4. Add the CI/CD check name to your branch protection ruleset
+#
+# DOCS:
+#   Composable pipeline:  https://github.com/aerospike/shared-workflows/blob/main/.github/workflows/docs/CICD-composable.md
+#   Full multi-ecosystem example: https://github.com/aerospike/shared-workflows/blob/main/.github/workflows/example_composable-matrix.yaml
+#   Release bundles:      https://github.com/aerospike/shared-workflows/blob/main/.github/workflows/docs/release-bundles.md
+
+name: CI/CD (composable)
+
+on: workflow_dispatch
+
+jobs:
+  noop:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
+# -------- REPLACE THE ABOVE WITH THE PIPELINE BELOW TO ENABLE --------
+#
+# on:
+#   push:
+#     branches: [main]
+#     tags: [v*]
+#   pull_request:
+#     branches: [main]
+#   workflow_dispatch:
+#
+# permissions:
+#   id-token: write
+#   contents: read
+#
+# jobs:
+#   extract-version:
+#     runs-on: ubuntu-latest
+#     outputs:
+#       version: ${{ steps.extract.outputs.version }}
+#     steps:
+#       - name: Harden the runner (Audit all outbound calls)
+#         uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+#         with:
+#           egress-policy: audit
+#
+#       - name: Checkout
+#         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#
+#       - name: Extract version
+#         id: extract
+#         uses: aerospike/shared-workflows/.github/actions/extract-version-from-tag@7f633569d89f706899e6b8f2151a3b200576c1fd # v3.1.1
+#
+#   build:
+#     needs: extract-version
+#     uses: aerospike/shared-workflows/.github/workflows/reusable_execute-build.yaml@7f633569d89f706899e6b8f2151a3b200576c1fd # v3.1.1
+#     with:
+#       gh-workflows-ref: 7f633569d89f706899e6b8f2151a3b200576c1fd # v3.1.1
+#       jf-project: test
+#       jf-build-name: test-build
+#       jf-build-id: ${{ github.run_id }}-${{ github.run_attempt }}-buildinfo-generic-x86_64
+#       gh-source-path: repo-source
+#       working-directory: repo-source
+#       build-script: |
+#         set -euo pipefail
+#         echo "Building version: ${{ needs.extract-version.outputs.version }}"
+#         mkdir -p dist
+#         echo "hello-world" > dist/hello-world.txt
+#       gh-artifact-directory: dist
+#       gh-artifact-name: build-artifacts-generic-x86_64
+#       oidc-provider-name: gh-dev-test
+#       oidc-audience: aerospike/testing
+#     secrets: inherit
+#
+#   # Merge per-build artifacts into a single artifact for downstream jobs.
+#   collect:
+#     needs: [build]
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Harden the runner (Audit all outbound calls)
+#         uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+#         with:
+#           egress-policy: audit
+#
+#       - name: Checkout shared-workflows (actions)
+#         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+#         with:
+#           repository: aerospike/shared-workflows
+#           ref: 7f633569d89f706899e6b8f2151a3b200576c1fd # v3.1.1
+#           sparse-checkout: .github/actions
+#           sparse-checkout-cone-mode: false
+#
+#       - name: Collect build artifacts
+#         uses: ./shared-workflows/.github/actions/collect-build-artifacts
+#
+#   # ================================================================
+#   # INSERT YOUR CUSTOM STEPS HERE
+#   # This job runs after artifacts are collected and before signing.
+#   # Use it for integration tests, security scans, or any validation.
+#   # ================================================================
+#   test:
+#     needs: collect
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Harden the runner (Audit all outbound calls)
+#         uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+#         with:
+#           egress-policy: audit
+#
+#       - name: Download build artifacts
+#         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+#         with:
+#           name: build-artifacts
+#           path: build-artifacts
+#
+#       - name: Run tests
+#         run: |
+#           echo "Build artifacts available for testing:"
+#           find build-artifacts
+#           # Replace with your actual test commands
+#
+#   sign:
+#     needs: test
+#     uses: aerospike/shared-workflows/.github/workflows/reusable_sign-artifacts.yaml@7f633569d89f706899e6b8f2151a3b200576c1fd # v3.1.1
+#     with:
+#       gh-workflows-ref: 7f633569d89f706899e6b8f2151a3b200576c1fd # v3.1.1
+#     secrets:
+#       gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
+#       gpg-public-key: ${{ secrets.GPG_PUBLIC_KEY }}
+#       gpg-key-pass: ${{ secrets.GPG_PASS }}
+#
+#   deploy:
+#     needs: [extract-version, sign]
+#     uses: aerospike/shared-workflows/.github/workflows/reusable_deploy-artifacts.yaml@7f633569d89f706899e6b8f2151a3b200576c1fd # v3.1.1
+#     with:
+#       gh-workflows-ref: 7f633569d89f706899e6b8f2151a3b200576c1fd # v3.1.1
+#       jf-project: test
+#       jf-build-name: test-build
+#       version: ${{ needs.extract-version.outputs.version }}
+#       jf-build-id: ${{ github.run_id }}-${{ github.run_attempt }}
+#       jf-metadata-build-id: ${{ github.run_id }}-${{ github.run_attempt }}-buildinfo
+#       oidc-provider-name: gh-dev-test
+#       oidc-audience: aerospike/testing
+#     secrets: inherit
