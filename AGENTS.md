@@ -118,7 +118,7 @@ See [README.md](README.md#where-this-guide-fits-alongside-aerospikeagent-skills)
 
 ## Maintaining this repo
 
-- **Before fetching a documentation URL for research,** check [urls-processed.md](urls-processed.md). If it is already listed, ask whether to reprocess before fetching again. Record new URLs there with the date and which file they fed.
+- **Before fetching a research URL,** check [urls-processed.md](urls-processed.md). If it is already listed, ask whether to reprocess before fetching again. Record new **external sources** there — blog posts, repos, KB articles — with the date and which file they fed. Aerospike docs pages are not logged; link them inline where they inform content.
 - **Validate new information against existing content before adding it.** Do not add material that is already covered. If new material appears to conflict with what is documented, ask for clarification rather than overwriting.
 - **Keep customer material anonymized.** Worked examples drawn from customer engagements use generic descriptors ("telco session-data platform", "web portal session store"). Do not reintroduce company names, customer set or namespace names, support case numbers, or links to internal Confluence or Jira.
 - **Filenames are a downstream contract.** The `aerospike-data-modeling` skill in `agent-skills` names this repo's files in its routing table. Renaming or removing a file breaks the skill's escalation path silently — no build fails. If you must rename, update that skill's `SKILL.md` routing table and `references/ex-guide-escalation.md` in the same change.
