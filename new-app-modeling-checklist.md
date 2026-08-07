@@ -1306,7 +1306,8 @@ Also verify client support against the client matrix for your language/runtime.
 
 Define guardrails up front:
 
-- Target record size band for normal traffic (typically 1-128 KiB where practical).
+- Target record size band for normal traffic — typically 1–128 KiB where practical, and stated as a **distribution**: the bulk of records in single-digit KiB, with the upper end reserved for outliers and slowly-changing consolidated structures. Give the expected p50 and p99 record size per set, not just the band.
+- **Justification for any record class expected to exceed ~50 KiB at p99.** State what makes that data slowly-changing and what its per-record update rate is. Every update rewrites the whole record, so size multiplies against write rate; a large record on a hot write path is a design defect even when it fits.
 - **Absolute max record safety threshold**, derived from the namespace's configured `max-record-size` — not a fixed constant. State the configured value, the safety threshold you will design to (meaningfully below it, since defrag and I/O cost rise well before the hard stop), and what happens when a record crosses that threshold. If the configured value is unknown, see the `max-record-size` required input in section 0.
 - List/map growth triggers for split/overflow/shard.
 - Batch-size bounds for key fan-out operations.

@@ -81,10 +81,30 @@ Three different bounds get conflated. Keep them separate — most sizing mistake
 
 | Tier | Value | Nature |
 |---|---|---|
-| **Design target** (Goldilocks) | **1–128 KiB** | Guidance. Where records should live. Exceeding it is a decision to justify, not an error. |
-| *— where within the band* | throughput-dependent | Lower-throughput workloads sit comfortably toward the upper end. High-throughput workloads should bias toward single-digit KiB so disk bandwidth and replication keep up. The band does not change; the target inside it does. |
+| **Design target** (Goldilocks) | **1–128 KiB**, with the bulk in **single-digit KiB** | A distribution, not a target. Most records should land at the low end; the upper end is headroom for outliers and slowly-changing consolidated structures, not a destination. Exceeding 128 KiB is a decision to justify, not an error. |
 | **Configured limit** | **`max-record-size`** — namespace parameter, **default 1 MiB**, dynamic | The real constraint. Must be **confirmed per deployment**, never assumed. |
 | **Architectural ceiling** | **8 MiB** | Hardcoded write-block size. `max-record-size` cannot be set above it. |
+
+#### Read the band as a distribution
+
+The band describes how record sizes should be *distributed*, not a size to aim for. Design so the **bulk of records sit in single-digit KiB**. The upper end exists to sustain **outliers** and **slowly-changing consolidated structures** — 1:N and N:M relationship lists, where the alternative (one record per edge) costs more in index memory and round trips than the large record costs in I/O.
+
+**Update rate is the deciding variable, not size.** The same 100 KiB record is unremarkable when it is rewritten once an hour and a device-saturation problem when it is rewritten thousands of times a second. Size only hurts once multiplied by write frequency. So the question to ask about a large record is *how often is it rewritten*, not *how big is it* — and where writes are infrequent relative to reads, which is exactly what "slowly-changing" means, **records near the upper end of the band are a legitimate design rather than a compromise**. Low write throughput, or a cluster with I/O and network headroom, genuinely buys room here.
+
+**Above roughly 50 KiB, justify the record explicitly.** A sufficient justification names the per-record update rate and shows it is low: "rewritten when a subscription changes, a few times a month" clears the bar; "appended on every user action" does not. Because every update rewrites the whole record contiguously, a 100 KiB record touched by a 15-byte append spends 100 KiB of write I/O, replication traffic, and defragmentation load — on every write. That is affordable at low frequency and ruinous at high.
+
+**Do not carry sizing intuition from other databases.** B-tree and document stores apply an incremental update without rewriting the whole object, and in-memory stores have no device I/O to amortize, so "large objects are fine" holds there and not here. In Aerospike, record size multiplies against update rate. Large records are viable at **low update rates**, or on clusters with I/O and network headroom to spare — not otherwise.
+
+The archetypes in [workload-archetypes.md](workload-archetypes.md) show the cost directly, and every one above ~10 KiB carries high write amplification:
+
+| Archetype | Record size | Modified per write | Write amplification |
+|---|---|---|---|
+| **C** Document/CDT | 1–10 KiB | tens of bytes | Moderate |
+| **J** Multi-Bin Entity | 5–30 KiB | 8–36 B | High — 26 KiB rewritten for 8 B |
+| **E** Association Lists | 1–150 KiB | ~15 B | High at scale — 150 KiB rewritten for 15 B |
+| **D** Consolidated Hierarchy | 50–350 KiB | ~400 B | High — 250 KiB rewritten for 400 B |
+
+E and D are precisely the relationship stores the upper band is for. They are viable **despite** that amplification, because the data changes slowly — not because the size is free. Read the table as a cost to weigh against write frequency, not as a prohibition: a follower list rewritten on each new follow is fine at a few follows per day and a problem at a few thousand per second, at identical size.
 
 **This is the only place in this guide that states these numbers.** Everywhere else refers to "the configured `max-record-size`" so the values cannot drift out of sync. The 1–128 KiB design target is also mirrored in the `aerospike-data-modeling` and `aerospike-development` skills in `agent-skills`; if measurement ever revises it, update all three.
 
@@ -102,9 +122,9 @@ Version history, because the behavior changed recently and older guidance is mis
 
 For the current default and permitted range, confirm against the [`max-record-size` configuration reference](https://aerospike.com/docs/database/reference/config#namespace__max-record-size) rather than trusting this page.
 
-**Goldilocks Principle (ideal record size):** The "by cardinality" aspect of one-to-many modeling is like Goldilocks and the Three Bears. **Too small** — when the ratio between record size and the 64-byte index metadata is poor, cost-efficiency suffers. In most deployments the primary index lives in memory and data on SSD, so many tiny records increase index memory cost without using storage efficiently. **Too big** — very large records hurt read/write performance and defragmentation. **Just right** — records in the **1–128 KiB** range tend to balance index-to-data ratio, I/O, and defrag impact. When choosing list-on-parent vs consolidate vs inverse index, aim for record sizes in this band where possible.
+**Goldilocks Principle (ideal record size):** The "by cardinality" aspect of one-to-many modeling is like Goldilocks and the Three Bears. **Too small** — when the ratio between record size and the 64-byte index metadata is poor, cost-efficiency suffers. In most deployments the primary index lives in memory and data on SSD, so many tiny records increase index memory cost without using storage efficiently. **Too big** — very large records hurt read/write performance and defragmentation. **Just right** — records in the **1–128 KiB** range tend to balance index-to-data ratio, I/O, and defrag impact. That balance is **not uniform across the band**: cost rises with size, so the low end is where it is best and the high end is a trade you accept for a reason. Aim for the **bulk of records in single-digit KiB**, and treat the upper end as room for outliers and slowly-changing consolidated data. When choosing list-on-parent vs consolidate vs inverse index, size for that distribution rather than for the ceiling.
 
-**Terminology — "a few KiB":** In this research, **"a few KiB"** means **1 KiB through 128 KiB** per record — the same band as the Goldilocks Principle. That entire range is the **sweet spot**; it is not limited to single-digit KiB. Larger records are sometimes justified by access patterns (e.g. consolidated lists with client-side pagination); see applied patterns and [follow-relationship-scale.md](follow-relationship-scale.md) for trade-offs above this band.
+**Terminology — "a few KiB":** In this research, **"a few KiB"** means **1 KiB through 128 KiB** per record — the same band as the Goldilocks Principle. The phrase is **not a hard single-digit cap**: a 40 KiB record is still inside the band and is not an error. But the band is a **distribution that skews single-digit KiB**, so "a few KiB" also does not mean "anything up to 128 KiB is equally good." Larger records are *justified by access pattern* — typically slowly-changing consolidated relationship data — not chosen by default; see applied patterns and [follow-relationship-scale.md](follow-relationship-scale.md) for trade-offs at and above the upper end.
 
 **Implications for data modeling:** Key design determines partition (and thus which node and how data is distributed). Aerospike does **not** support collocation of related records via key design; keys are uniformly distributed for load balancing. Key design should still support **access patterns** (e.g. compose the key so related objects can be looked up or batched efficiently). No schema means our “standard” data model is an application-level contract: we agree on namespace, set(s), key format, and bin names/types so that all clients read/write the same logical model; the server does not enforce it. Record granularity and target size (**few KiB** = **1–128 KiB** where practical, and always within the namespace's configured `max-record-size` — see Record size limits above) should be part of that contract; batch reads make many medium-sized records a good fit.
 

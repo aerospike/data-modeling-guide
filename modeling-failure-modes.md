@@ -122,6 +122,6 @@ Values that a cluster operator can change (`max-record-size`) or that are gated 
 
 **Why.** 64 bytes of index for a 300-byte payload is roughly 21% overhead, paid in RAM, at every replica. Over-consolidating to fix it creates a hot key that serializes writes.
 
-**Instead.** Choose by population and access pattern: modest populations stay one record per entity; large populations use hash-bucket or domain-grouped consolidation to reach the 1–128 KiB band; or move index cost off memory entirely with primary index on flash (All Flash). → [concepts-and-patterns.md](concepts-and-patterns.md) (Data modeling tips, "Small independent entities below Goldilocks")
+**Instead.** Choose by population and access pattern: modest populations stay one record per entity; large populations use hash-bucket or domain-grouped consolidation to reach the low end of the 1–128 KiB band — single-digit KiB is the target here, not the upper end; or move index cost off memory entirely with primary index on flash (All Flash). → [concepts-and-patterns.md](concepts-and-patterns.md) (Data modeling tips, "Small independent entities below Goldilocks")
 
 **Tier.** Portable.
