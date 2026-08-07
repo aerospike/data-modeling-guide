@@ -55,7 +55,6 @@ RULESET_PAYLOAD="$(jq -n --arg name "$RULESET_NAME" --argjson checks "$CHECKS" '
         required_reviewers: [],
         allowed_merge_methods: ["squash"]
     }},
-    { type: "required_signatures" },
     { type: "required_status_checks", parameters: {
         required_status_checks: $checks,
         strict_required_status_checks_policy: true

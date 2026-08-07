@@ -62,9 +62,16 @@ baseline (`protect_default_branch_0001`). Only includes the delta:
 
 - Required review thread resolution
 - Squash-only merges
-- Required commit signatures
 - Required status checks (`Trunk Check` + `validate-jira-ticket / hygiene-check`)
 - Strict status checks (branch must be up to date)
+
+Commit signature enforcement (`required_signatures`) was deliberately removed
+from the template's ruleset. It attests authorship of commit objects, which
+matters most where commits feed a build that ships to customers. This is an
+internal documentation repository with named code owners and pull-request
+review; requiring every contributor to configure a GPG or SSH signing key costs
+more than it returns here. Artifact signing is a separate mechanism and was
+removed along with the JFrog pipelines.
 
 **Repository settings:**
 
