@@ -1,2 +1,7 @@
-# * @ USER1
-# * @ GROUP1
+# Code owners for aerospike/data-modeling-guide
+#
+# Any one of these owners can approve a pull request. If branch protection is
+# enabled with require_code_owner_review, at least one review from this list is
+# required before merge.
+
+* @rbotzer @realmgic @tim-aero @lyndonbauto
