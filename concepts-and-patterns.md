@@ -14,13 +14,13 @@ Background from the [Aerospike documentation](https://aerospike.com/docs/) on da
 
 Aerospike uses a **schemaless** data model: no fixed schema; structure is determined by how the application uses the system.
 
-| Component | Description |
-|-----------|-------------|
-| **Physical storage** | Per-namespace choice: NVMe Flash, DRAM, or PMem. Different namespaces in the same cluster can use different storage engines. |
-| **Namespace** | Top-level container (like a tablespace): records that share one storage engine and policies (replication factor, encryption, etc.). A database can have multiple namespaces. |
-| **Set** | Optional logical grouping of records within a namespace (table-like, but no explicit schema). Records can belong to a set or only to the namespace. Scans and secondary indexes can be scoped to a set. **Set name cannot exceed 63 bytes** (UTF-8). |
-| **Record** | Unit of storage: uniquely identified by a key. Contains **metadata** (generation, TTL, LUT) and **bins** (name + value). |
-| **Bin** | Name + value; type is defined by the value. **Bin names are limited to 15 characters.** No schema: each record can have different bins; bins can be added/removed. Values use [native data types](https://aerospike.com/docs/develop/data-types/blob) (scalars, blob, list, map, etc.). |
+| Component            | Description                                                                                                                                                                                                                                                                             |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Physical storage** | Per-namespace choice: NVMe Flash, DRAM, or PMem. Different namespaces in the same cluster can use different storage engines.                                                                                                                                                            |
+| **Namespace**        | Top-level container (like a tablespace): records that share one storage engine and policies (replication factor, encryption, etc.). A database can have multiple namespaces.                                                                                                            |
+| **Set**              | Optional logical grouping of records within a namespace (table-like, but no explicit schema). Records can belong to a set or only to the namespace. Scans and secondary indexes can be scoped to a set. **Set name cannot exceed 63 bytes** (UTF-8).                                    |
+| **Record**           | Unit of storage: uniquely identified by a key. Contains **metadata** (generation, TTL, LUT) and **bins** (name + value).                                                                                                                                                                |
+| **Bin**              | Name + value; type is defined by the value. **Bin names are limited to 15 characters.** No schema: each record can have different bins; bins can be added/removed. Values use [native data types](https://aerospike.com/docs/develop/data-types/blob) (scalars, blob, list, map, etc.). |
 
 **Key and digest:** The application operates on records by key (or digest). The client hashes the key (e.g. RIPEMD160) to a 20-byte digest. The server can work with either; the digest is used for partition placement and index metadata.
 
@@ -79,17 +79,17 @@ Aerospike uses a **schemaless** data model: no fixed schema; structure is determ
 
 Three different bounds get conflated. Keep them separate — most sizing mistakes come from naming the third while meaning the second.
 
-| Tier | Value | Nature |
-|---|---|---|
-| **Design target** (Goldilocks) | **1–128 KiB**, with the bulk in **single-digit KiB** | A distribution, not a target. Most records should land at the low end; the upper end is headroom for outliers and slowly-changing consolidated structures, not a destination. Exceeding 128 KiB is a decision to justify, not an error. |
-| **Configured limit** | **`max-record-size`** — namespace parameter, **default 1 MiB**, dynamic | The real constraint. Must be **confirmed per deployment**, never assumed. |
-| **Architectural ceiling** | **8 MiB** | Hardcoded write-block size. `max-record-size` cannot be set above it. |
+| Tier                           | Value                                                                   | Nature                                                                                                                                                                                                                                  |
+| ------------------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Design target** (Goldilocks) | **1–128 KiB**, with the bulk in **single-digit KiB**                    | A distribution, not a target. Most records should land at the low end; the upper end is headroom for outliers and slowly-changing consolidated structures, not a destination. Exceeding 128 KiB is a decision to justify, not an error. |
+| **Configured limit**           | **`max-record-size`** — namespace parameter, **default 1 MiB**, dynamic | The real constraint. Must be **confirmed per deployment**, never assumed.                                                                                                                                                               |
+| **Architectural ceiling**      | **8 MiB**                                                               | Hardcoded write-block size. `max-record-size` cannot be set above it.                                                                                                                                                                   |
 
 #### Read the band as a distribution
 
-The band describes how record sizes should be *distributed*, not a size to aim for. Design so the **bulk of records sit in single-digit KiB**. The upper end exists to sustain **outliers** and **slowly-changing consolidated structures** — 1:N and N:M relationship lists, where the alternative (one record per edge) costs more in index memory and round trips than the large record costs in I/O.
+The band describes how record sizes should be _distributed_, not a size to aim for. Design so the **bulk of records sit in single-digit KiB**. The upper end exists to sustain **outliers** and **slowly-changing consolidated structures** — 1:N and N:M relationship lists, where the alternative (one record per edge) costs more in index memory and round trips than the large record costs in I/O.
 
-**Update rate is the deciding variable, not size.** The same 100 KiB record is unremarkable when it is rewritten once an hour and a device-saturation problem when it is rewritten thousands of times a second. Size only hurts once multiplied by write frequency. So the question to ask about a large record is *how often is it rewritten*, not *how big is it* — and where writes are infrequent relative to reads, which is exactly what "slowly-changing" means, **records near the upper end of the band are a legitimate design rather than a compromise**. Low write throughput, or a cluster with I/O and network headroom, genuinely buys room here.
+**Update rate is the deciding variable, not size.** The same 100 KiB record is unremarkable when it is rewritten once an hour and a device-saturation problem when it is rewritten thousands of times a second. Size only hurts once multiplied by write frequency. So the question to ask about a large record is _how often is it rewritten_, not _how big is it_ — and where writes are infrequent relative to reads, which is exactly what "slowly-changing" means, **records near the upper end of the band are a legitimate design rather than a compromise**. Low write throughput, or a cluster with I/O and network headroom, genuinely buys room here.
 
 **Above roughly 50 KiB, justify the record explicitly.** A sufficient justification names the per-record update rate and shows it is low: "rewritten when a subscription changes, a few times a month" clears the bar; "appended on every user action" does not. Because every update rewrites the whole record contiguously, a 100 KiB record touched by a 15-byte append spends 100 KiB of write I/O, replication traffic, and defragmentation load — on every write. That is affordable at low frequency and ruinous at high.
 
@@ -97,12 +97,12 @@ The band describes how record sizes should be *distributed*, not a size to aim f
 
 The archetypes in [workload-archetypes.md](workload-archetypes.md) show the cost directly, and every one above ~10 KiB carries high write amplification:
 
-| Archetype | Record size | Modified per write | Write amplification |
-|---|---|---|---|
-| **C** Document/CDT | 1–10 KiB | tens of bytes | Moderate |
-| **J** Multi-Bin Entity | 5–30 KiB | 8–36 B | High — 26 KiB rewritten for 8 B |
-| **E** Association Lists | 1–150 KiB | ~15 B | High at scale — 150 KiB rewritten for 15 B |
-| **D** Consolidated Hierarchy | 50–350 KiB | ~400 B | High — 250 KiB rewritten for 400 B |
+| Archetype                    | Record size | Modified per write | Write amplification                        |
+| ---------------------------- | ----------- | ------------------ | ------------------------------------------ |
+| **C** Document/CDT           | 1–10 KiB    | tens of bytes      | Moderate                                   |
+| **J** Multi-Bin Entity       | 5–30 KiB    | 8–36 B             | High — 26 KiB rewritten for 8 B            |
+| **E** Association Lists      | 1–150 KiB   | ~15 B              | High at scale — 150 KiB rewritten for 15 B |
+| **D** Consolidated Hierarchy | 50–350 KiB  | ~400 B             | High — 250 KiB rewritten for 400 B         |
 
 E and D are precisely the relationship stores the upper band is for. They are viable **despite** that amplification, because the data changes slowly — not because the size is free. Read the table as a cost to weigh against write frequency, not as a prohibition: a follower list rewritten on each new follow is fine at a few follows per day and a problem at a few thousand per second, at identical size.
 
@@ -113,7 +113,7 @@ The design target is derived from index-to-data ratio, I/O size, and defragmenta
 - **A write that breaches `max-record-size` fails with error 13** (`AS_ERR_RECORD_TOO_BIG`), counted by the `fail_record_too_big` metric. It is a hard rejection, not degraded performance.
 - **Size against the configured value, not the ceiling.** A model designed for 8 MiB is rejected at 1 MiB on a default namespace — an 8× error in the safety margin.
 - **`max-record-size` is dynamic**, so it can be raised without a restart (up to 8 MiB). That makes it a deployment input to confirm, not an immovable constraint — but raising it is an operational decision the modeler must request explicitly, not assume.
-- **Health degrades well before the hard stop.** Each write rewrites the whole record, so defragmentation cost and I/O latency rise with record size long before any limit is hit. A design that merely *fits* is not a design that performs.
+- **Health degrades well before the hard stop.** Each write rewrites the whole record, so defragmentation cost and I/O latency rise with record size long before any limit is hit. A design that merely _fits_ is not a design that performs.
 
 Version history, because the behavior changed recently and older guidance is misleading:
 
@@ -124,7 +124,7 @@ For the current default and permitted range, confirm against the [`max-record-si
 
 **Goldilocks Principle (ideal record size):** The "by cardinality" aspect of one-to-many modeling is like Goldilocks and the Three Bears. **Too small** — when the ratio between record size and the 64-byte index metadata is poor, cost-efficiency suffers. In most deployments the primary index lives in memory and data on SSD, so many tiny records increase index memory cost without using storage efficiently. **Too big** — very large records hurt read/write performance and defragmentation. **Just right** — records in the **1–128 KiB** range tend to balance index-to-data ratio, I/O, and defrag impact. That balance is **not uniform across the band**: cost rises with size, so the low end is where it is best and the high end is a trade you accept for a reason. Aim for the **bulk of records in single-digit KiB**, and treat the upper end as room for outliers and slowly-changing consolidated data. When choosing list-on-parent vs consolidate vs inverse index, size for that distribution rather than for the ceiling.
 
-**Terminology — "a few KiB":** In this research, **"a few KiB"** means **1 KiB through 128 KiB** per record — the same band as the Goldilocks Principle. The phrase is **not a hard single-digit cap**: a 40 KiB record is still inside the band and is not an error. But the band is a **distribution that skews single-digit KiB**, so "a few KiB" also does not mean "anything up to 128 KiB is equally good." Larger records are *justified by access pattern* — typically slowly-changing consolidated relationship data — not chosen by default; see applied patterns and [follow-relationship-scale.md](follow-relationship-scale.md) for trade-offs at and above the upper end.
+**Terminology — "a few KiB":** In this research, **"a few KiB"** means **1 KiB through 128 KiB** per record — the same band as the Goldilocks Principle. The phrase is **not a hard single-digit cap**: a 40 KiB record is still inside the band and is not an error. But the band is a **distribution that skews single-digit KiB**, so "a few KiB" also does not mean "anything up to 128 KiB is equally good." Larger records are _justified by access pattern_ — typically slowly-changing consolidated relationship data — not chosen by default; see applied patterns and [follow-relationship-scale.md](follow-relationship-scale.md) for trade-offs at and above the upper end.
 
 **Implications for data modeling:** Key design determines partition (and thus which node and how data is distributed). Aerospike does **not** support collocation of related records via key design; keys are uniformly distributed for load balancing. Key design should still support **access patterns** (e.g. compose the key so related objects can be looked up or batched efficiently). No schema means our “standard” data model is an application-level contract: we agree on namespace, set(s), key format, and bin names/types so that all clients read/write the same logical model; the server does not enforce it. Record granularity and target size (**few KiB** = **1–128 KiB** where practical, and always within the namespace's configured `max-record-size` — see Record size limits above) should be part of that contract; batch reads make many medium-sized records a good fit.
 
@@ -151,6 +151,7 @@ The following summarizes the [Capacity planning guide](https://aerospike.com/doc
 Quick reference for how each relationship type maps to Aerospike patterns. Use this alongside the record-sizing guidance above (Goldilocks Principle) and the detailed patterns in Source 4 (one-to-many) and Source 5 (many-to-many) below.
 
 **1:1 — Same record or predictable paired key.**
+
 - **Same record (default):** Store both entities as bins or a nested CDT on one record (e.g. user profile + settings). Simplest; one read, atomic writes.
 - **Paired key or separate set/namespace:** When the two entities have independent lifecycles, different TTLs, or very different access frequencies, use a deterministic second key (e.g. `user:{id}` and `user-settings:{id}`) or the same key in a different set or namespace. One extra get when you need both.
 
@@ -162,12 +163,12 @@ Quick reference for how each relationship type maps to Aerospike patterns. Use t
 - **High (hundreds to tens of thousands):** Too many keys to store on the parent without dominating it, but the aggregate (parent + children in a CDT) fits one consolidated record within or modestly above the sweet spot.
 - **Unbounded / skewed:** No practical upper bound, or heavy-tailed distribution (most entities low, a few very high). The consolidated record may grow large; paginated list reads keep each response bounded. At extreme scale, overflow via the shard-on-demand pattern (see § Shard-on-demand pattern below and [one-to-many-relationships.md](one-to-many-relationships.md) § 5).
 
-| Situation | Pattern |
-|-----------|---------|
-| Low cardinality, parent-driven reads | List of child keys on the parent record; batch get children. |
-| High cardinality, parent-driven reads | Consolidate: one record per parent holding children in a CDT. |
-| Inverse reads ("find all parents for this child") | Child-held parent reference + secondary index query. |
-| Unbounded / skewed fan-out | Consolidated record with paginated list reads; overflow via shard-on-demand for extreme cases (see § Shard-on-demand pattern below, [one-to-many-relationships.md](one-to-many-relationships.md) § 5, and [follow-relationship-scale.md](follow-relationship-scale.md)). |
+| Situation                                         | Pattern                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Low cardinality, parent-driven reads              | List of child keys on the parent record; batch get children.                                                                                                                                                                                                             |
+| High cardinality, parent-driven reads             | Consolidate: one record per parent holding children in a CDT.                                                                                                                                                                                                            |
+| Inverse reads ("find all parents for this child") | Child-held parent reference + secondary index query.                                                                                                                                                                                                                     |
+| Unbounded / skewed fan-out                        | Consolidated record with paginated list reads; overflow via shard-on-demand for extreme cases (see § Shard-on-demand pattern below, [one-to-many-relationships.md](one-to-many-relationships.md) § 5, and [follow-relationship-scale.md](follow-relationship-scale.md)). |
 
 ### Worked example — comments on a post (sizing sample)
 
@@ -199,13 +200,14 @@ When edge metadata is minimal (e.g., timestamp-only) and the relationship count 
 
 **Multi-record consistency.** Any relationship mutation that touches 2+ records (e.g. adding a link on both sides of an N:M, or updating a child + parent in a 1:N) raises the question of what happens if one write succeeds and another fails. How to handle this depends on the consistency mode of the namespace:
 
-- **Strong-consistency (CP) namespace:** Use multi-record transactions (Aerospike Database 8+) to update all sides atomically. Simplest correctness guarantee for relationship integrity — but four limits decide whether a transaction can serve a given mutation, and they must be checked *before* designing around one:
+- **Strong-consistency (CP) namespace:** Use multi-record transactions (Aerospike Database 8+) to update all sides atomically. Simplest correctness guarantee for relationship integrity — but four limits decide whether a transaction can serve a given mutation, and they must be checked _before_ designing around one:
   1. **At most 4096 records written** per transaction (reads are unlimited). Exceeding it fails with `MRT_TOO_MANY_WRITES`.
   2. **All records must be in the same namespace.**
   3. **Queries cannot run inside a transaction** — only point reads and batch reads. A mutation driven by "find all X" must resolve to known keys first, or run the query with `includeBinData=false` and batch-read the matches.
   4. **Every delete inside a transaction must be a durable delete.**
 
-  Limits 1 and 3 are what usually rule transactions out for **cascades**. Deleting a user's content across thousands of records breaches the write cap, and the natural "find everything belonging to X" step is a query — so wide cascades need deferred cleanup (see [new-app-modeling-checklist.md](new-app-modeling-checklist.md) Decision Pack 5.8), not a transaction. Transactions fit *bounded, known-key* mutations: both sides of a link, a child plus its parent, a counter plus the record it counts.
+  Limits 1 and 3 are what usually rule transactions out for **cascades**. Deleting a user's content across thousands of records breaches the write cap, and the natural "find everything belonging to X" step is a query — so wide cascades need deferred cleanup (see [new-app-modeling-checklist.md](new-app-modeling-checklist.md) Decision Pack 5.8), not a transaction. Transactions fit _bounded, known-key_ mutations: both sides of a link, a child plus its parent, a counter plus the record it counts.
+
 - **AP-mode namespace:** Update both sides independently. If relationship consistency matters, verify after the writes (e.g. read-back check, background reconciliation job). Many applications tolerate brief inconsistency between the two sides and have valid reasons to prefer AP mode (higher availability, simpler operations, no strong-consistency regime required).
 
 Choose based on what the use case requires — not every relationship needs transactional guarantees.
@@ -226,7 +228,7 @@ The following are practical tips for Aerospike data modeling. They are not sourc
 
 Rule of thumb: "If this copy is 5 minutes stale, does anything break?" If yes, don't duplicate — read the authoritative record instead.
 
-**Growth behavior is the primary split signal.** Immutable fields, slowly-changing fields, and small slowly-growing lists belong together by default. Split when a portion of the record grows by accumulation (list appends, map key additions) at a rate or size that would degrade performance or approach the configured `max-record-size`. Evaluate the size *trajectory*, not just the current snapshot.
+**Growth behavior is the primary split signal.** Immutable fields, slowly-changing fields, and small slowly-growing lists belong together by default. Split when a portion of the record grows by accumulation (list appends, map key additions) at a rate or size that would degrade performance or approach the configured `max-record-size`. Evaluate the size _trajectory_, not just the current snapshot.
 
 **Don't over-consolidate: hot-path subset reads.** Consolidation is good — but not if every hot-path read fetches a large record only to use a small slice. If the common read needs a subset, make sure the model supports returning just that subset without reading the whole record to the client:
 
@@ -238,30 +240,30 @@ If none of these projections fit the access pattern — e.g. the hot path needs 
 
 **Small independent entities below Goldilocks.** Not every entity participates in a relationship. Configuration records, feature flags, device profiles, preference objects, and similar entities may be small (a few hundred bytes), accessed individually by key, and unrelated to other entities. At 300 bytes per record, the 64-byte primary index entry is ~21% overhead — tolerable at modest scale but costly at millions of records.
 
-*Default:* One record per entity. If the entity has a natural key, fits within the configured `max-record-size`, and the population is small enough that the absolute PI cost is within budget, this is the simplest correct design. A 300-byte entity is below the Goldilocks band but is not a problem in itself — it only becomes one when the record count is large enough for the aggregate PI cost to matter.
+_Default:_ One record per entity. If the entity has a natural key, fits within the configured `max-record-size`, and the population is small enough that the absolute PI cost is within budget, this is the simplest correct design. A 300-byte entity is below the Goldilocks band but is not a problem in itself — it only becomes one when the record count is large enough for the aggregate PI cost to matter.
 
-*Hash-bucket consolidation (PI optimization):* When a large population of small, same-type entities has no natural grouping dimension and the aggregate PI cost is unacceptable, consolidate into hash-bucketed records. Each record holds a **map bin** keyed by entity ID; entity payloads are the map values.
+_Hash-bucket consolidation (PI optimization):_ When a large population of small, same-type entities has no natural grouping dimension and the aggregate PI cost is unacceptable, consolidate into hash-bucketed records. Each record holds a **map bin** keyed by entity ID; entity payloads are the map values.
 
 - **Key formula:** `record_key = "{set}:{hash(entity_id) % N}"` where N is the bucket count.
 - **Sizing N:** Choose N so each bucket lands in the Goldilocks band (1–128 KiB). Formula: `N = ceil(entity_count × avg_entity_size / target_bucket_size)`, where `target_bucket_size` is in the 1–128 KiB range. Example: 1M entities at 300 bytes with a 30 KiB target → N = 10,000. Each bucket holds ~100 entities ≈ 30 KiB. PI drops from 1M × 64 bytes = 64 MB to 10K × 64 bytes = 640 KB.
 - **Operations:** Read one entity: `map_get_by_key(entity_id)`. Write/update: `map_put(entity_id, payload)`. Delete: `map_remove_by_key(entity_id)`. Count: `map_size()`. All are single-record, single-CDT-operation calls.
 
-*Domain-grouped consolidation:* When the entities share a natural grouping dimension that also matches an access pattern (e.g. "all feature flags for app X," "all config entries for tenant Y"), use the group key as the record key and a map bin for the entities within that group. Preferred over hash-bucketing when the group-level read is a real access pattern, since it serves both individual and group reads from one record.
+_Domain-grouped consolidation:_ When the entities share a natural grouping dimension that also matches an access pattern (e.g. "all feature flags for app X," "all config entries for tenant Y"), use the group key as the record key and a map bin for the entities within that group. Preferred over hash-bucketing when the group-level read is a real access pattern, since it serves both individual and group reads from one record.
 
-*What consolidation sacrifices:*
+_What consolidation sacrifices:_
 
 - **Per-entity TTL.** TTL is per-record. If entities have different lifetimes, embed an expiry timestamp in the map value and prune periodically, or accept that all entities in a bucket share the bucket's TTL.
 - **Per-entity metadata.** Generation, last-update-time, and other record-level metadata apply to the bucket, not to individual entities. If per-entity versioning is needed, embed it in the map value.
 - **Write isolation.** Concurrent writes to different entities in the same bucket contend on one record. With good bucket distribution and moderate write rates this is acceptable; at high write rates, increase N to reduce collision probability.
 
-*When to accept the PI cost and keep one record per entity:*
+_When to accept the PI cost and keep one record per entity:_
 
 - The entity population is modest (thousands, not millions) and the absolute PI cost is within budget.
 - Entities need distinct per-record TTL that cannot be approximated by bucket-level TTL plus embedded expiry.
 - Per-entity record metadata (generation, last-update-time) is required for correctness (e.g. conditional writes using generation checks).
 - Write contention on shared buckets would violate latency SLOs.
 
-*Alternative: primary index on flash (All Flash).* Instead of consolidating entities to reduce PI memory cost, the namespace can store its primary index on NVMe SSDs (`index-type flash`) rather than in memory. This eliminates PI memory pressure entirely — the 64 bytes per record moves to flash — so many small records are no longer a memory cost concern. Trade-offs: read latency increases (flash I/O for every index lookup vs in-memory), operational complexity grows (XFS filesystem setup, kernel parameter tuning, `partition-tree-sprigs` sizing, `mounts-budget` capacity planning), and the flash devices must be sized for the index. All Flash is best suited for extremely large record counts where the PI would consume prohibitive amounts of memory and consolidation is not feasible or desirable. It is a deployment-level decision, not a per-entity modeling pattern — it affects the entire namespace. See [Configure the primary index](https://aerospike.com/docs/database/manage/namespace/primary-index) for setup and [Capacity planning](https://aerospike.com/docs/database/manage/planning/capacity#primary-index-on-flash) for sizing.
+_Alternative: primary index on flash (All Flash)._ Instead of consolidating entities to reduce PI memory cost, the namespace can store its primary index on NVMe SSDs (`index-type flash`) rather than in memory. This eliminates PI memory pressure entirely — the 64 bytes per record moves to flash — so many small records are no longer a memory cost concern. Trade-offs: read latency increases (flash I/O for every index lookup vs in-memory), operational complexity grows (XFS filesystem setup, kernel parameter tuning, `partition-tree-sprigs` sizing, `mounts-budget` capacity planning), and the flash devices must be sized for the index. All Flash is best suited for extremely large record counts where the PI would consume prohibitive amounts of memory and consolidation is not feasible or desirable. It is a deployment-level decision, not a per-entity modeling pattern — it affects the entire namespace. See [Configure the primary index](https://aerospike.com/docs/database/manage/namespace/primary-index) for setup and [Capacity planning](https://aerospike.com/docs/database/manage/planning/capacity#primary-index-on-flash) for sizing.
 
 **Sort dimensions on consolidated records.** When a consolidated record must serve multiple display orders, map rank operations cover one sort dimension natively (scalar value, or leading list element via list comparison). Each additional sort dimension requires an auxiliary sorted structure — an ordered list for time order, a secondary map for score/rank — maintained on write alongside the primary structure. Do not duplicate sort logic in application code when CDT operations can serve it directly. When the UI reads the full consolidated structure (e.g., a complete comment tree) and lets the user seamlessly toggle between oldest-first, newest-first, and highest-rank-first, one read already returns all the data. The auxiliaries in this case are lightweight ordering metadata — a list of IDs in time order, a map of ID-to-score for rank — that let the client re-sort without recomputing from raw fields. The server does not need separate paginated queries per sort mode; one read returns the data, and the auxiliaries tell the client in what order to display it. As always, clarify the access pattern first, then optimize the data model to serve it. See [cdt-api.md](cdt-api.md) § "Serving multiple sort dimensions" for mechanics and [new-app-modeling-checklist.md](new-app-modeling-checklist.md) § "Ordering contract: sort-dimension pattern" for the full pattern and a worked example.
 
@@ -279,13 +281,13 @@ If none of these projections fit the access pattern — e.g. the hot path needs 
 
 The original record holds a `subkeys` bin — a 2-element CDT list `[type, S]` — that tells readers and writers how to route to sub-records. The `type` determines the routing strategy; `S` parameterizes it.
 
-| `subkeys` value | Routing | Sub-record key |
-|---|---|---|
-| `["hash-shards", S]` | `value % S` (hash distribution) | `{originalKey}:{i}` for i in 0..S−1 |
-| `["seconds", S]` | Time buckets of S seconds, anchored to midnight UTC | `{originalKey}:{bucket_timestamp}` |
-| `["minutes", S]` | Time buckets of S minutes, anchored to midnight UTC | `{originalKey}:{bucket_timestamp}` |
-| `["hours", S]` | Time buckets of S hours, anchored to midnight UTC | `{originalKey}:{bucket_timestamp}` |
-| `["days", S]` | Time buckets of S days, anchored to midnight UTC | `{originalKey}:{bucket_timestamp}` |
+| `subkeys` value      | Routing                                             | Sub-record key                      |
+| -------------------- | --------------------------------------------------- | ----------------------------------- |
+| `["hash-shards", S]` | `value % S` (hash distribution)                     | `{originalKey}:{i}` for i in 0..S−1 |
+| `["seconds", S]`     | Time buckets of S seconds, anchored to midnight UTC | `{originalKey}:{bucket_timestamp}`  |
+| `["minutes", S]`     | Time buckets of S minutes, anchored to midnight UTC | `{originalKey}:{bucket_timestamp}`  |
+| `["hours", S]`       | Time buckets of S hours, anchored to midnight UTC   | `{originalKey}:{bucket_timestamp}`  |
+| `["days", S]`        | Time buckets of S days, anchored to midnight UTC    | `{originalKey}:{bucket_timestamp}`  |
 
 For `"hash-shards"`, S is the number of sub-records (bounded, known upfront). For time types, S is the boundary size in the given unit — the number of sub-records grows over time.
 
@@ -310,7 +312,7 @@ The filter expression makes the non-sharded path zero-overhead — no extra read
 **From blog [Data Modeling for Speed at Scale (Part 2)](https://aerospike.com/blog/data-modeling-for-speed-at-scale-part-2/) (CDTs):**
 
 - **Object ID design for direct access:** When objects live inside a CDT and must be reachable by object id, **embed the record key (or collection id) in the object id** (e.g. as a prefix). The application can then derive the record key from the object id, do one get by key, then target the object inside the CDT (by value or by map key). Example: if the record key is region id and the CDT holds all stores in that region, store ids can be `regionId:storeId` so the record key is always known.
-- **Direct access by container type:** **List of Lists** (object = list tuple with id as first field): use get-by-value with id + wildcard (e.g. `get-by-value(outerList, ["id1", *])`). **Map of Maps** (object id = map key): use get-by-key(outerMap, "id1"). **Map of Lists** (object = list tuple inside map value): there is no wildcard for map *values*, so you cannot do "get by object id" inside the list; use Map of Maps if you need direct access by object id within the container.
+- **Direct access by container type:** **List of Lists** (object = list tuple with id as first field): use get-by-value with id + wildcard (e.g. `get-by-value(outerList, ["id1", *])`). **Map of Maps** (object id = map key): use get-by-key(outerMap, "id1"). **Map of Lists** (object = list tuple inside map value): there is no wildcard for map _values_, so you cannot do "get by object id" inside the list; use Map of Maps if you need direct access by object id within the container.
 - **Value-based access: prefer List tuple over Map (with caveats):** List tuples support value and value-range selection with **wildcard** and **NIL/INF** (e.g. get-by-value-range on first field). Maps do not support wildcard in value comparison; exact or range match on map values requires specifying all keys. When you need value-based or range-based selection (including in filter expressions), model objects as **list tuples** with the selection field first; use Map when you need key-based access or self-describing schema (e.g. JSON). **Persist-index caveat:** With a **persisted full index** (map with `PERSIST_INDEX` + `V_ORDERED`), map value-based access is O(log N + M) and rank-based access is O(1) — comparable to or better than ordered list with persisted index for value operations. When the access pattern is primarily key-based with occasional value/rank queries, a map with persisted full index may be preferable to a list tuple. See [cdt-api.md](cdt-api.md) § Map performance characteristics for the full complexity table.
 - **Filter expressions on CDT value predicates:** Value-based predicates in filter expressions (e.g. on a list of tuples) can only use the **first field** of the tuple for comparison; wildcard/NIL/INF apply as in CDT ops. See [cdt-api.md](cdt-api.md) for ordering and interval rules.
 
@@ -333,12 +335,12 @@ One million sensors, one temperature reading per minute for a year (525,600 read
 
 ### Data model
 
-| Aspect | Choice | Foundational link |
-|--------|--------|-------------------|
-| **Namespace** | `test` (example) | Top-level container; one storage engine and policies for all sensor data. |
-| **Set** | `sensor_data` | Logical grouping within the namespace; scans and secondary indexes can be scoped to this set. |
+| Aspect         | Choice                                                                                                | Foundational link                                                                                                                                        |
+| -------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Namespace**  | `test` (example)                                                                                      | Top-level container; one storage engine and policies for all sensor data.                                                                                |
+| **Set**        | `sensor_data`                                                                                         | Logical grouping within the namespace; scans and secondary indexes can be scoped to this set.                                                            |
 | **Record key** | String: `sensor{sensor_id}-{YYYY-MM-DD}` (e.g. `sensor1-2018-12-31`) — one record per sensor per day. | Key (or its digest) determines **partition** (RIPEMD160 → 12 bits) and thus distribution across nodes. Key design drives access: one key per sensor-day. |
-| **Bins** | Single bin `t` (list of readings for that day). | Schemaless: no fixed schema; bin name + value (here, a list type). |
+| **Bins**       | Single bin `t` (list of readings for that day).                                                       | Schemaless: no fixed schema; bin name + value (here, a list type).                                                                                       |
 
 **Bin `t` (readings):**
 
@@ -395,12 +397,12 @@ User profile store for **audience segmentation** (e.g. AdTech, real-time bidding
 
 ### Data model
 
-| Aspect | Choice | Foundational link |
-|--------|--------|-------------------|
-| **Namespace** | `test` (example) | Top-level container; one storage engine and policies. |
-| **Set** | `profiles` | Logical grouping; scans (e.g. background trim) can be scoped to this set. |
-| **Record key** | User ID string (e.g. `u1`, `"1234"`) — **one record per user**. | Key determines **partition**; one key per user gives one read for all segments and keeps record count = user count. |
-| **Bins** | Single bin `u` (or `segments`): **map** from segment_id → value. | Schemaless: bin holds one map; no fixed schema for value structure beyond application contract. |
+| Aspect         | Choice                                                           | Foundational link                                                                                                   |
+| -------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Namespace**  | `test` (example)                                                 | Top-level container; one storage engine and policies.                                                               |
+| **Set**        | `profiles`                                                       | Logical grouping; scans (e.g. background trim) can be scoped to this set.                                           |
+| **Record key** | User ID string (e.g. `u1`, `"1234"`) — **one record per user**.  | Key determines **partition**; one key per user gives one read for all segments and keeps record count = user count. |
+| **Bins**       | Single bin `u` (or `segments`): **map** from segment_id → value. | Schemaless: bin holds one map; no fixed schema for value structure beyond application contract.                     |
 
 **Bin `u` (segment map):**
 
@@ -567,19 +569,19 @@ Use case: two related entity types where one has many of the other; **both entit
 
 ### Two implementation options (cardinality-driven)
 
-| Situation | Approach | Rationale |
-|-----------|----------|-----------|
-| **"Many" is very large** (thousands or more) | Child record stores parent ID; create a **secondary index** on that parent-ID bin. | Query by parent ID to discover all child keys; then batch get children. Same idea as relational FK + index. Keeps parent record small and avoids storing huge key lists. |
-| **Smaller cardinality** or need **fastest retrieval** of the "many" | Parent record stores a **list of child keys** (in a bin). Optionally, child stores parent ID for reverse lookup. | One read of parent yields all child keys; batch get by those keys. No secondary index query; minimal latency when cardinality is modest. |
+| Situation                                                           | Approach                                                                                                         | Rationale                                                                                                                                                                |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **"Many" is very large** (thousands or more)                        | Child record stores parent ID; create a **secondary index** on that parent-ID bin.                               | Query by parent ID to discover all child keys; then batch get children. Same idea as relational FK + index. Keeps parent record small and avoids storing huge key lists. |
+| **Smaller cardinality** or need **fastest retrieval** of the "many" | Parent record stores a **list of child keys** (in a bin). Optionally, child stores parent ID for reverse lookup. | One read of parent yields all child keys; batch get by those keys. No secondary index query; minimal latency when cardinality is modest.                                 |
 
 The cookbook implements the second approach (parent holds list of child keys) with **bidirectional** references so both traversal directions are supported.
 
 ### Data model (cookbook example: Agent, Listing)
 
-| Entity | Set | Record key | Key bins | Purpose |
-|--------|-----|------------|----------|---------|
-| **Parent (Agent)** | `agent` | `agentId` (long) | `listings` (list of listing IDs) | One record per agent; list of child keys for "all listings for this agent." |
-| **Child (Listing)** | `listing` | `listingId` (string) | `agentId` (long), plus address/description/etc. | One record per listing; parent reference for "which agent lists this." |
+| Entity              | Set       | Record key           | Key bins                                        | Purpose                                                                     |
+| ------------------- | --------- | -------------------- | ----------------------------------------------- | --------------------------------------------------------------------------- |
+| **Parent (Agent)**  | `agent`   | `agentId` (long)     | `listings` (list of listing IDs)                | One record per agent; list of child keys for "all listings for this agent." |
+| **Child (Listing)** | `listing` | `listingId` (string) | `agentId` (long), plus address/description/etc. | One record per listing; parent reference for "which agent lists this."      |
 
 - **Parent → child:** Get agent (e.g. bin `listings` only) → use returned IDs as keys → batch get listing records.
 - **Child → parent:** Get listing → read `agentId` → get agent by key.
@@ -629,10 +631,10 @@ Use case: two entity types where **each** has many of the other; both entities h
 
 ### Data model (cookbook example: Customer, Account)
 
-| Entity | Set | Record key | Key bins | Purpose |
-|--------|-----|------------|----------|---------|
-| **Customer** | `customer` | `custId` (string) | `accounts` (list of account IDs) | One record per customer; list of account keys for "all accounts this customer owns." |
-| **Account** | `account` | account id (e.g. UUID) | `owners` (list of customer IDs) | One record per account; list of customer keys for "all owners of this account." |
+| Entity       | Set        | Record key             | Key bins                         | Purpose                                                                              |
+| ------------ | ---------- | ---------------------- | -------------------------------- | ------------------------------------------------------------------------------------ |
+| **Customer** | `customer` | `custId` (string)      | `accounts` (list of account IDs) | One record per customer; list of account keys for "all accounts this customer owns." |
+| **Account**  | `account`  | account id (e.g. UUID) | `owners` (list of customer IDs)  | One record per account; list of customer keys for "all owners of this account."      |
 
 - **Customer → accounts:** Get customer's `accounts` bin → batch get account records by those keys.
 - **Account → owners:** Get account's `owners` bin → batch get customer records by those keys.
@@ -692,10 +694,10 @@ Use a **composite map key** so that key order equals score order without a value
 
 ### Data model: score buckets + player records
 
-| Component | Set | Record key | Key bin | Purpose |
-|-----------|-----|------------|---------|---------|
-| **Scoreboard** | `scoreboard` (example) | Bucket id (e.g. 0..N for score ranges 0–24, 25–49, …) | Map: composite key (e.g. `04982-000000001`) → playerId | One record per score bucket; KEY_ORDERED map so index = rank within bucket. |
-| **Player** | `player` | playerId | `score`, plus name, etc. | One record per player; score duplicated here and updated when score changes. |
+| Component      | Set                    | Record key                                            | Key bin                                                | Purpose                                                                      |
+| -------------- | ---------------------- | ----------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| **Scoreboard** | `scoreboard` (example) | Bucket id (e.g. 0..N for score ranges 0–24, 25–49, …) | Map: composite key (e.g. `04982-000000001`) → playerId | One record per score bucket; KEY_ORDERED map so index = rank within bucket.  |
+| **Player**     | `player`               | playerId                                              | `score`, plus name, etc.                               | One record per player; score duplicated here and updated when score changes. |
 
 Bucket size (e.g. 25 points per bucket) trades record size and write contention for number of records and boundary handling. Can split buckets or use skip-list style indexing if needed (adds complexity and O(log N) vs O(1) access).
 
@@ -750,12 +752,12 @@ The leaderboard's **getScoresAroundPlayer** (scores above and below a given play
 
 Criteria that must hold for a defender to be matchable (example):
 
-| Criterion | Bin / logic | Expression idea |
-|-----------|-------------|-----------------|
-| Defender not online | `online` (bool) | `Exp.not(Exp.boolBin("online"))` |
-| No active shield | `shieldExpiry` (timestamp) | `Exp.lt(Exp.intBin("shieldExpiry"), Exp.val(now))` |
-| Not being attacked | `beingAttackedBy` (string, empty if none) | `Exp.or(Exp.eq(Exp.val(""), Exp.stringBin("beingAttackedBy")), Exp.not(Exp.binExists("beingAttackedBy")))` |
-| Not beginner | `score` | `Exp.gt(Exp.intBin("score"), Exp.val(400))` |
+| Criterion           | Bin / logic                               | Expression idea                                                                                            |
+| ------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Defender not online | `online` (bool)                           | `Exp.not(Exp.boolBin("online"))`                                                                           |
+| No active shield    | `shieldExpiry` (timestamp)                | `Exp.lt(Exp.intBin("shieldExpiry"), Exp.val(now))`                                                         |
+| Not being attacked  | `beingAttackedBy` (string, empty if none) | `Exp.or(Exp.eq(Exp.val(""), Exp.stringBin("beingAttackedBy")), Exp.not(Exp.binExists("beingAttackedBy")))` |
+| Not beginner        | `score`                                   | `Exp.gt(Exp.intBin("score"), Exp.val(400))`                                                                |
 
 Combined with `Exp.and(...)`. This expression is used as **filterExp** on batch get and on write so that only records satisfying the criteria are returned or updated.
 
@@ -796,11 +798,11 @@ Use case: devices (e.g. cameras) record events at random times; events belong to
 
 ### Data model
 
-| Aspect | Choice | Purpose |
-|--------|--------|---------|
-| **Record key** | `accountId + dateOffset` (e.g. days since fixed epoch) | One record per account per day (or per configurable bucket, e.g. N hours). Empty days have no record. |
-| **Bin** | Single bin (e.g. `map`): **KEY_ORDERED map** | Map key = eventId (see below); map value = list `[deviceId, eventDetailsMap]`. Key order = time order. |
-| **EventId** | Timestamp (e.g. 13 digits) + random suffix (e.g. 12 digits) | Uniqueness when timestamps collide across devices; sortable so key range = time range. Used for pagination (exclusive end or "next id" for asc). |
+| Aspect         | Choice                                                      | Purpose                                                                                                                                          |
+| -------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Record key** | `accountId + dateOffset` (e.g. days since fixed epoch)      | One record per account per day (or per configurable bucket, e.g. N hours). Empty days have no record.                                            |
+| **Bin**        | Single bin (e.g. `map`): **KEY_ORDERED map**                | Map key = eventId (see below); map value = list `[deviceId, eventDetailsMap]`. Key order = time order.                                           |
+| **EventId**    | Timestamp (e.g. 13 digits) + random suffix (e.g. 12 digits) | Uniqueness when timestamps collide across devices; sortable so key range = time range. Used for pagination (exclusive end or "next id" for asc). |
 
 Record TTL set on insert (e.g. 14 days); updates use a policy that does not modify TTL so existing expiration is preserved.
 
@@ -816,7 +818,7 @@ Map value is a **list** `[deviceId, eventDetailsMap]` (list so Aerospike can com
 
 ### Combining time range and device filter
 
-**MapOperation** does not support both getByKeyRange and getByValueList in one call. Use **ExpOperation.read** with an expression: (1) **MapExp.getByKeyRange** (oldestEventId, newestEventId, mapBin) → filtered map by time; (2) **MapExp.getByValueList** (device value list, *result of step 1*) → filter by device. Apply key range first for efficiency (data is key-ordered). Return type KEY_VALUE so the result is the filtered map.
+**MapOperation** does not support both getByKeyRange and getByValueList in one call. Use **ExpOperation.read** with an expression: (1) **MapExp.getByKeyRange** (oldestEventId, newestEventId, mapBin) → filtered map by time; (2) **MapExp.getByValueList** (device value list, _result of step 1_) → filter by device. Apply key range first for efficiency (data is key-ordered). Return type KEY_VALUE so the result is the filtered map.
 
 ### Insert and update
 
@@ -848,10 +850,10 @@ Use case: extends the time series model (Source 8) for **high variance** in even
 
 ### Two-phase storage per bucket
 
-| Phase | Condition | Storage | Writes |
-|-------|-----------|---------|--------|
-| **Root only** | Map size &lt; threshold (e.g. MAX_RECORDS_PER_BUCKET) and no continuation bin | All events in the bucket record's root map (same as Source 8) | Single-record operate; no transaction. |
-| **Continuation** | Map size ≥ threshold (or continuation already exists) | Root map is emptied; a **continuation bin** (list of event IDs) is added. Each list entry points to a **sub-record** that holds a block of events. | New events go to the appropriate sub-record; root record holds only the index (continuation list). |
+| Phase            | Condition                                                                     | Storage                                                                                                                                            | Writes                                                                                             |
+| ---------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **Root only**    | Map size &lt; threshold (e.g. MAX_RECORDS_PER_BUCKET) and no continuation bin | All events in the bucket record's root map (same as Source 8)                                                                                      | Single-record operate; no transaction.                                                             |
+| **Continuation** | Map size ≥ threshold (or continuation already exists)                         | Root map is emptied; a **continuation bin** (list of event IDs) is added. Each list entry points to a **sub-record** that holds a block of events. | New events go to the appropriate sub-record; root record holds only the index (continuation list). |
 
 Once the continuation bin exists, the root map is no longer used for new events; the list in the continuation bin is **append-only** (existing entries immutable). New blocks may be appended to the list.
 
@@ -896,10 +898,10 @@ Use case: e.g. fraud detection — need the **N most recent transactions** per a
 
 ### Single-DC model
 
-| Component | Set / record | Content |
-|-----------|----------------|---------|
-| **Transaction** | Own set; key = txn id | Full transaction (accountId, timestamp, amount, status, etc.). Record TTL as needed. |
-| **Account** | One record per account; key = accountId | One bin: **KEY_ORDERED map**. Map key = composite `timestamp-txnId` (e.g. `%013d-%8s`) for uniqueness and sort order; map value = txn id (or more for filtering). |
+| Component       | Set / record                            | Content                                                                                                                                                           |
+| --------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Transaction** | Own set; key = txn id                   | Full transaction (accountId, timestamp, amount, status, etc.). Record TTL as needed.                                                                              |
+| **Account**     | One record per account; key = accountId | One bin: **KEY_ORDERED map**. Map key = composite `timestamp-txnId` (e.g. `%013d-%8s`) for uniqueness and sort order; map value = txn id (or more for filtering). |
 
 **Save:** (1) Write transaction record. (2) Operate on account record: **map_put**(compositeKey, txnId), then **map_removeByIndexRange**(bin, -N, MapReturnType.INVERTED) — keep only the last N entries by key order (KEY_ORDERED so highest timestamp at end; -N = last N; INVERTED = remove everything else). So the account holds a bounded "top N" index.
 
@@ -941,7 +943,7 @@ This use case is a **collection of expression techniques** rather than a single 
 
 ### 2. IN (reverse): bin value in a passed list (is the record's scalar in our list?)
 
-"Record's `color` bin — is it one of Red, Green, Blue?" **ListExp.getByValue** takes (returnType, *value*, *list*). The *list* argument can be any list-typed expression, not only a bin. So pass the **bin as the value** and the **application list as the list**: ListExp.getByValue(ListReturnType.EXISTS, Exp.stringBin("color"), Exp.val(List.of("Red", "Green", "Blue"))). Use as filter for "color IN (Red, Green, Blue)".
+"Record's `color` bin — is it one of Red, Green, Blue?" **ListExp.getByValue** takes (returnType, _value_, _list_). The _list_ argument can be any list-typed expression, not only a bin. So pass the **bin as the value** and the **application list as the list**: ListExp.getByValue(ListReturnType.EXISTS, Exp.stringBin("color"), Exp.val(List.of("Red", "Green", "Blue"))). Use as filter for "color IN (Red, Green, Blue)".
 
 ### 3. Multiple dependent steps in one operation (let/def and write)
 
@@ -953,7 +955,7 @@ This use case is a **collection of expression techniques** rather than a single 
 ### Takeaways for our standard example
 
 - **Filter "value IN list bin":** Use **ListExp.getByValue**(EXISTS, Exp.val(value), Exp.listBin("bin")) in filterExp. For set semantics on that list, use ADD_UNIQUE and NO_FAIL on append.
-- **Filter "bin value IN (app list)":** Use **ListExp.getByValue**(EXISTS, Exp.*Bin("field"), Exp.val(appList)) — bin as value, passed list as list argument.
+- **Filter "bin value IN (app list)":** Use **ListExp.getByValue**(EXISTS, Exp.\*Bin("field"), Exp.val(appList)) — bin as value, passed list as list argument.
 - **Multi-step conditional update on one bin:** Use **Exp.let** and **Exp.def** to chain conditionals; each step returns a modified copy (e.g. list with item appended); pass the result to the next step via **Exp.var()**; final **ExpOperation.write** writes the last variable to the bin. One operate, one bin; avoids multiple round-trips and keeps dependent logic atomic.
 - **Expression indexes (8.1+):** Expression indexes can index the computed value of an expression rather than a raw bin, creating sparse indexes that include only matching records. Path expressions (`CdtExp.selectByPath`) can define the indexed value, enabling SI creation on fields inside nested CDTs. See [expressions.md](expressions.md) § Secondary index expressions and [path-expressions.md](path-expressions.md) § Expression index creation with path expressions.
 - **See also:** [expressions.md](expressions.md) for expression API; Source 6 (Leaderboard), Source 8 (Time Series), Source 10 (across DCs) for MapExp/list usage in expressions.

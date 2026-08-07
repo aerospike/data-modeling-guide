@@ -50,11 +50,11 @@ Children (or a record that aggregates them) hold the parent id or a "who's here"
 
 ## 4. How to choose: cardinality and who drives the read
 
-| Situation | Pattern |
-|-----------|---------|
-| **Low cardinality, parent-driven reads** | List on parent (e.g. `repost_ids`). |
-| **High cardinality, parent-driven reads** | Consolidate into one record per parent (e.g. comments in `post_comments`). |
-| **High cardinality, child-driven or inverse reads** | Don't put the list on the "one" side; put the link on the "many" (or its container) and use a secondary index to query (e.g. `commenters` for user-delete). |
+| Situation                                                                         | Pattern                                                                                                                                                      |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Low cardinality, parent-driven reads**                                          | List on parent (e.g. `repost_ids`).                                                                                                                          |
+| **High cardinality, parent-driven reads**                                         | Consolidate into one record per parent (e.g. comments in `post_comments`).                                                                                   |
+| **High cardinality, child-driven or inverse reads**                               | Don't put the list on the "one" side; put the link on the "many" (or its container) and use a secondary index to query (e.g. `commenters` for user-delete).  |
 | **Very high cardinality (N exceeds single-record capacity), parent-driven reads** | Companion record with ordered list of reference IDs, sharded into sub-records when N exceeds the ~128 KiB target. See section 5 (companion record overflow). |
 
 **CDT sub-element operations are parent-driven access.** When children are consolidated into a parent record and accessed via CDT operations (e.g., `map_put` on one child entry, `list_append` to a nested list), this is still parent-driven access for the purpose of pattern selection — not child-driven access. The operation executes within the parent record's I/O path. Child-driven access means the dominant path is direct single-child read/write by an independent child key, without loading the parent.
@@ -71,10 +71,10 @@ Suppose a post can have up to ~600 comments (p99), each averaging ~300 bytes (sh
 
 **Step 2 — Compare alternatives:**
 
-| Approach | Records | PI cost | Read cost | Verdict |
-|----------|---------|---------|-----------|---------|
-| One record per comment | 600 records | 600 × 64 bytes = **37.5 KiB** of index for ~175 KiB of data | 600-record batch get + client-side ordering | Bad PI ratio; ordering complexity |
-| Consolidate into one record per post | 1 record | 1 × 64 bytes | One get returns the whole thread | Good PI ratio; single-record access; record size (~175 KiB) is acceptable |
+| Approach                             | Records     | PI cost                                                     | Read cost                                   | Verdict                                                                   |
+| ------------------------------------ | ----------- | ----------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------- |
+| One record per comment               | 600 records | 600 × 64 bytes = **37.5 KiB** of index for ~175 KiB of data | 600-record batch get + client-side ordering | Bad PI ratio; ordering complexity                                         |
+| Consolidate into one record per post | 1 record    | 1 × 64 bytes                                                | One get returns the whole thread            | Good PI ratio; single-record access; record size (~175 KiB) is acceptable |
 
 **Consolidation wins** — the aggregate fits one record at a manageable size, and the access pattern is parent-driven.
 
@@ -143,11 +143,11 @@ Each sub-record uses the same list structure as the baseline companion: ordered 
 
 Choose the `subkeys` tuple based on access shape:
 
-| Access shape | `subkeys` value | Routing | Sub-record key |
-|---|---|---|---|
-| Even write distribution / membership queries | `["hash-shards", S]` | `child_id % S` | `{companion_key}:{i}` for i in 0..S−1 |
-| Recent-window reads (e.g., "latest followers") | `["hours", S]` | Time buckets of S hours, anchored to midnight UTC | `{companion_key}:{bucket_timestamp}` |
-| Coarse time partitioning (e.g., daily batches) | `["days", S]` | Time buckets of S days, anchored to midnight UTC | `{companion_key}:{bucket_timestamp}` |
+| Access shape                                   | `subkeys` value      | Routing                                           | Sub-record key                        |
+| ---------------------------------------------- | -------------------- | ------------------------------------------------- | ------------------------------------- |
+| Even write distribution / membership queries   | `["hash-shards", S]` | `child_id % S`                                    | `{companion_key}:{i}` for i in 0..S−1 |
+| Recent-window reads (e.g., "latest followers") | `["hours", S]`       | Time buckets of S hours, anchored to midnight UTC | `{companion_key}:{bucket_timestamp}`  |
+| Coarse time partitioning (e.g., daily batches) | `["days", S]`        | Time buckets of S days, anchored to midnight UTC  | `{companion_key}:{bucket_timestamp}`  |
 
 `["hash-shards", S]` is the default for reference-list overflow. Time-based types (`"seconds"`, `"minutes"`, `"hours"`, `"days"`) are appropriate when reads are strongly biased toward recent entries and older shards can be skipped entirely.
 
@@ -185,5 +185,3 @@ Document the rollback trigger and procedure as part of the data model contract.
 
 - [Aerospike Data Modeling — Research Notes](concepts-and-patterns.md) — Foundation, indexes, and applied patterns.
 - [New-app modeling checklist](new-app-modeling-checklist.md) — Decision packs for relationship pattern selection; overflow/shard triggers in the required decision records.
-
-

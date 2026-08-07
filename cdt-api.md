@@ -5,6 +5,7 @@
 **Status:** Reference.
 
 **Source docs:**
+
 - [Collections overview](https://aerospike.com/docs/develop/data-types/collections/)
 - [List](https://aerospike.com/docs/develop/data-types/collections/list/)
   - [List performance](https://aerospike.com/docs/develop/data-types/collections/list/performance/)
@@ -43,15 +44,15 @@
 
 ### List operations (representative)
 
-| Category   | Operations |
-|-----------|------------|
-| Order     | `set_order()`, `sort()`, `clear()` |
-| Write     | `append()`, `append_items()`, `insert()`, `set()`, `increment()` |
-| Size      | `size()` |
-| By index  | `get_by_index()`, `get_by_index_range()` |
-| By rank   | `get_by_rank()`, `get_by_rank_range()` |
-| By value  | `get_all_by_value()`, `get_all_by_value_list()`, `get_by_value_interval()`, `get_by_value_rel_rank_range()` |
-| Remove    | `remove_by_index()`, `remove_by_index_range()`, `remove_by_rank_range()`, `remove_all_by_value()`, `remove_all_by_value_list()`, `remove_by_value_interval()`, `remove_by_value_rel_rank_range()` |
+| Category | Operations                                                                                                                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Order    | `set_order()`, `sort()`, `clear()`                                                                                                                                                                |
+| Write    | `append()`, `append_items()`, `insert()`, `set()`, `increment()`                                                                                                                                  |
+| Size     | `size()`                                                                                                                                                                                          |
+| By index | `get_by_index()`, `get_by_index_range()`                                                                                                                                                          |
+| By rank  | `get_by_rank()`, `get_by_rank_range()`                                                                                                                                                            |
+| By value | `get_all_by_value()`, `get_all_by_value_list()`, `get_by_value_interval()`, `get_by_value_rel_rank_range()`                                                                                       |
+| Remove   | `remove_by_index()`, `remove_by_index_range()`, `remove_by_rank_range()`, `remove_all_by_value()`, `remove_all_by_value_list()`, `remove_by_value_interval()`, `remove_by_value_rel_rank_range()` |
 
 - List bin is created when a list value is written to a bin or when using list `append`, `insert`, `set`, or `increment`.
 - Insertion at either end is fast; append/delete at end is generally efficient.
@@ -61,24 +62,24 @@
 
 Worst-case complexity for modeling-relevant operations. N = element count, M = range/interval result count, R = min(r, N-r-1) for rank r.
 
-| Operation | Unordered | Ordered | Ordered + Persisted Index |
-|-----------|-----------|---------|--------------------------|
-| `get_by_index` | O(N) | O(N) | O(1) |
-| `get_by_index_range` | O(N + M) | O(N + M) | O(M) |
-| `get_by_value_interval` / `get_all_by_value` | O(N + M) | O(log N + N) | O(log N + M) |
-| `get_by_rank` † | O(1) | O(R log N + N) | O(N) |
-| `get_by_rank_range` | O(R log N + N) | O(N + M) | O(M) |
-| `append` / `insert(0)` / `set(0)` | O(1) | O(log N + N) | O(log N) |
-| ADD_UNIQUE append/insert | O(N) | O(log N + N) | O(log N) |
-| `remove_by_index` | O(N) | O(N) | O(1) |
-| `remove_by_value_interval` / `remove_all_by_value` | O(N + M) | O(log N + N) | O(log N + M) |
-| `remove_by_rank_range` | O(R log N + N) | O(N + M) | O(M) |
+| Operation                                          | Unordered      | Ordered        | Ordered + Persisted Index |
+| -------------------------------------------------- | -------------- | -------------- | ------------------------- |
+| `get_by_index`                                     | O(N)           | O(N)           | O(1)                      |
+| `get_by_index_range`                               | O(N + M)       | O(N + M)       | O(M)                      |
+| `get_by_value_interval` / `get_all_by_value`       | O(N + M)       | O(log N + N)   | O(log N + M)              |
+| `get_by_rank` †                                    | O(1)           | O(R log N + N) | O(N)                      |
+| `get_by_rank_range`                                | O(R log N + N) | O(N + M)       | O(M)                      |
+| `append` / `insert(0)` / `set(0)`                  | O(1)           | O(log N + N)   | O(log N)                  |
+| ADD_UNIQUE append/insert                           | O(N)           | O(log N + N)   | O(log N)                  |
+| `remove_by_index`                                  | O(N)           | O(N)           | O(1)                      |
+| `remove_by_value_interval` / `remove_all_by_value` | O(N + M)       | O(log N + N)   | O(log N + M)              |
+| `remove_by_rank_range`                             | O(R log N + N) | O(N + M)       | O(M)                      |
 
 **† `get_by_rank` anomaly.** These are the figures published in the [list performance table](https://aerospike.com/docs/develop/data-types/collections/list/performance), reproduced as documented. The profile is counterintuitive — it makes the unordered list the cheapest and the persisted-index list worse than O(1) — and it inverts the pattern every other row follows. Treat it as unconfirmed: benchmark before designing around single-rank access on a list, and prefer `get_by_rank_range` (whose profile is conventional) where it can serve the same need. Worth raising with the docs team.
 
 **Legend:** Unordered = no internal indexes. Ordered = value order maintained, offset index rebuilt per operation. Ordered + Persisted Index = offset index stored in the list particle. In an ordered list, index and rank are equivalent, so persisted-index benefits apply to rank operations as well. Every modify op has an additional copy-on-write cost for rollback. Storage ops add +D (load from storage) and +W (write to storage).
 
-**Return-type performance implications.** The complexities above assume the default return type. Non-default return types add CPU cost. For example, requesting RANK on index-range operations against an unordered list adds O(L*N) where L = min(i, N-i-1).
+**Return-type performance implications.** The complexities above assume the default return type. Non-default return types add CPU cost. For example, requesting RANK on index-range operations against an unordered list adds `O(L*N)` where L = min(i, N-i-1).
 
 ### Secondary index on list elements
 
@@ -95,7 +96,7 @@ A secondary index (SI) on a list bin creates one index entry per list element. E
 
 Aerospike Maps have three subtypes that differ in how elements are ordered and what internal indexes they maintain. All three share the same API and support key, index, value, and rank based operations. They can be converted between each other with `set_type()`.
 
-**From DB 7.0:** all Maps are stored in key order on the server regardless of the order hint the client used when creating them. The subtype therefore describes **which internal indexes the map maintains**, not whether the bytes on storage happen to be sorted. "Unordered" means no index and no *guaranteed* order the application may rely on — not that the server stores elements in arbitrary order. An application that depends on the informal ordering of an unordered map can break if that ordering changes.
+**From DB 7.0:** all Maps are stored in key order on the server regardless of the order hint the client used when creating them. The subtype therefore describes **which internal indexes the map maintains**, not whether the bytes on storage happen to be sorted. "Unordered" means no index and no _guaranteed_ order the application may rely on — not that the server stores elements in arbitrary order. An application that depends on the informal ordering of an unordered map can break if that ordering changes.
 
 - **Unordered:** Elements have no guaranteed order. No internal indexes; all lookups scan elements. Lowest storage overhead.
 - **K-ordered:** Elements are stored in key order. Has a key offset index that maps each key position to a byte offset within the packed map.
@@ -119,10 +120,10 @@ Persist-index is only supported for top-level maps. Nested map persist-index is 
 
 Map: `{a:1, b:2, c:30, y:30, z:26}` (K-ordered, so stored in key order: a, b, c, y, z).
 
-| Element | a:1 | b:2 | c:30 | y:30 | z:26 |
-|---------|-----|-----|------|------|------|
-| key     | a   | b   | c    | y    | z    |
-| value   | 1   | 2   | 30   | 30   | 26   |
+| Element | a:1     | b:2     | c:30    | y:30    | z:26    |
+| ------- | ------- | ------- | ------- | ------- | ------- |
+| key     | a       | b       | c       | y       | z       |
+| value   | 1       | 2       | 30      | 30      | 26      |
 | index   | 0 or -5 | 1 or -4 | 2 or -3 | 3 or -2 | 4 or -1 |
 | rank    | 0 or -5 | 1 or -4 | 3 or -2 | 4 or -1 | 2 or -3 |
 
@@ -160,7 +161,7 @@ When map values are lists, rank is determined by list comparison: element-by-ele
 Rank is determined by comparing the list values. List comparison starts at index 0, so `ttl` (the first element) drives the order:
 
 | Element | 205: [3600, {}] | 101: [4800, {src: "web"}] | 310: [5100, {src: "app"}] |
-|---------|-----------------|---------------------------|---------------------------|
+| ------- | --------------- | ------------------------- | ------------------------- |
 | index   | 1               | 0                         | 2                         |
 | rank    | 0 (lowest ttl)  | 1                         | 2 (highest ttl)           |
 
@@ -174,15 +175,15 @@ See [concepts-and-patterns.md](concepts-and-patterns.md) Source 2 (User Profile 
 
 ### Map operations (representative)
 
-| Category   | Operations |
-|-----------|------------|
-| Type      | `set_type()` |
-| Write     | `put()`, `put_items()`, `increment()`, `decrement()`, `clear()` |
-| Size      | `size()` |
-| By key    | `get_by_key()`, `get_by_key_interval()`, `get_all_by_key_list()` |
-| By index  | `get_by_index()`, `get_by_index_range()`, `get_by_key_rel_index_range()` |
-| By value  | `get_by_value_interval()`, `get_by_rank_range()`, `get_all_by_value()`, `get_all_by_value_list()`, `get_by_value_rel_rank_range()` |
-| Remove    | `remove_by_key()`, `remove_by_key_interval()`, `remove_by_index()`, `remove_by_index_range()`, `remove_by_value_interval()`, `remove_by_rank_range()`, `remove_all_by_value()`, etc. |
+| Category | Operations                                                                                                                                                                           |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Type     | `set_type()`                                                                                                                                                                         |
+| Write    | `put()`, `put_items()`, `increment()`, `decrement()`, `clear()`                                                                                                                      |
+| Size     | `size()`                                                                                                                                                                             |
+| By key   | `get_by_key()`, `get_by_key_interval()`, `get_all_by_key_list()`                                                                                                                     |
+| By index | `get_by_index()`, `get_by_index_range()`, `get_by_key_rel_index_range()`                                                                                                             |
+| By value | `get_by_value_interval()`, `get_by_rank_range()`, `get_all_by_value()`, `get_all_by_value_list()`, `get_by_value_rel_rank_range()`                                                   |
+| Remove   | `remove_by_key()`, `remove_by_key_interval()`, `remove_by_index()`, `remove_by_index_range()`, `remove_by_value_interval()`, `remove_by_rank_range()`, `remove_all_by_value()`, etc. |
 
 ### Map op flags and return types
 
@@ -201,20 +202,20 @@ See [concepts-and-patterns.md](concepts-and-patterns.md) Source 2 (User Profile 
 
 Worst-case complexity for modeling-relevant operations. N = element count, M = range/interval result count, R = min(r, N-r-1) for rank r, L = min(i, N-i-1) for index i.
 
-| Operation | Unordered | Ordered (no persist) | Persisted Offset Index | Persisted Full Index |
-|-----------|-----------|---------------------|----------------------|---------------------|
-| `get_by_key` | O(N) | O(N) | O(log N) | O(log N) |
-| `get_by_index` | O(L log N + N) | O(N) | O(1) | O(1) |
-| `get_by_index_range` | O(L log N + N) | O(N + M) | O(M) | O(M) |
-| `get_by_rank` | O(R log N + N) | O(R log N + N) | O(R log N) | O(1) |
-| `get_by_key_interval` | O(N) | O(N) | O(log N + M) | O(log N + M) |
-| `get_by_value_interval` / `get_all_by_value` | O(N + M) | O(N + M) | O(N + M) | O(log N + M) |
-| `get_by_rank_range` | O(R log N + N) | O(R log N + N) | O(R log N) | O(M) |
-| `put` | O(N) | O(N) | O(log N) | O(log N) |
-| `increment` / `decrement` | O(N) | O(N) | O(log N) | O(log N) |
-| `remove_by_key` | O(N) | O(N) | O(log N) | O(log N) |
-| `remove_by_rank` | O(R log N + N) | O(R log N + N) | O(R log N) | O(1) |
-| `remove_by_rank_range` | O(R log N + N) | O(R log N + N) | O(R log N) | O(M) |
+| Operation                                    | Unordered      | Ordered (no persist) | Persisted Offset Index | Persisted Full Index |
+| -------------------------------------------- | -------------- | -------------------- | ---------------------- | -------------------- |
+| `get_by_key`                                 | O(N)           | O(N)                 | O(log N)               | O(log N)             |
+| `get_by_index`                               | O(L log N + N) | O(N)                 | O(1)                   | O(1)                 |
+| `get_by_index_range`                         | O(L log N + N) | O(N + M)             | O(M)                   | O(M)                 |
+| `get_by_rank`                                | O(R log N + N) | O(R log N + N)       | O(R log N)             | O(1)                 |
+| `get_by_key_interval`                        | O(N)           | O(N)                 | O(log N + M)           | O(log N + M)         |
+| `get_by_value_interval` / `get_all_by_value` | O(N + M)       | O(N + M)             | O(N + M)               | O(log N + M)         |
+| `get_by_rank_range`                          | O(R log N + N) | O(R log N + N)       | O(R log N)             | O(M)                 |
+| `put`                                        | O(N)           | O(N)                 | O(log N)               | O(log N)             |
+| `increment` / `decrement`                    | O(N)           | O(N)                 | O(log N)               | O(log N)             |
+| `remove_by_key`                              | O(N)           | O(N)                 | O(log N)               | O(log N)             |
+| `remove_by_rank`                             | O(R log N + N) | O(R log N + N)       | O(R log N)             | O(1)                 |
+| `remove_by_rank_range`                       | O(R log N + N) | O(R log N + N)       | O(R log N)             | O(M)                 |
 
 **Legend:** Unordered = no internal indexes, linear scan. Ordered (no persist) = K-ordered or KV-ordered with offset index rebuilt per operation. Persisted Offset Index = key offset index stored in map particle (K-ordered + persist, or any subtype + persist without `V_ORDERED`). Persisted Full Index = both key offset and value order indexes stored (any subtype + persist with `V_ORDERED`). Every modify op has an additional copy-on-write cost for rollback. Storage ops add +D (load) and +W (write).
 
@@ -250,17 +251,17 @@ If platform limit or app cap is unknown, mark `BLOCKED_MISSING_INPUT` and do not
 
 ### Context types
 
-| Type                 | Description |
-|----------------------|-------------|
-| `BY_LIST_INDEX(idx)` | List element at index |
-| `BY_LIST_RANK(rank)` | List element at rank |
-| `BY_LIST_VALUE(val)` | List element by value. Selects the **first** matching element in list (index) order when duplicates exist. Requires an exact value — WILDCARD is not allowed. |
-| `BY_MAP_INDEX(idx)`  | Map element at index |
-| `BY_MAP_RANK(rank)`  | Map element at rank |
-| `BY_MAP_KEY(key)`    | Map element by key |
-| `BY_MAP_VALUE(val)`  | Map element by value. Selects the **first** matching element in index order when duplicates exist. Requires an exact value — WILDCARD is not allowed. |
-| `MAP_KEY_CREATE(key)`   | Create map key if missing, then select (4.9+) |
-| `LIST_INDEX_CREATE(idx)` | Create list slot if missing, then select (4.9+) |
+| Type                     | Description                                                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BY_LIST_INDEX(idx)`     | List element at index                                                                                                                                         |
+| `BY_LIST_RANK(rank)`     | List element at rank                                                                                                                                          |
+| `BY_LIST_VALUE(val)`     | List element by value. Selects the **first** matching element in list (index) order when duplicates exist. Requires an exact value — WILDCARD is not allowed. |
+| `BY_MAP_INDEX(idx)`      | Map element at index                                                                                                                                          |
+| `BY_MAP_RANK(rank)`      | Map element at rank                                                                                                                                           |
+| `BY_MAP_KEY(key)`        | Map element by key                                                                                                                                            |
+| `BY_MAP_VALUE(val)`      | Map element by value. Selects the **first** matching element in index order when duplicates exist. Requires an exact value — WILDCARD is not allowed.         |
+| `MAP_KEY_CREATE(key)`    | Create map key if missing, then select (4.9+)                                                                                                                 |
+| `LIST_INDEX_CREATE(idx)` | Create list slot if missing, then select (4.9+)                                                                                                               |
 
 - **CDT context** feature: DB 4.6.0+. Create-if-missing context types: 4.9.0+.
 - **Each selector must identify exactly one element**, and must target an element whose type matches the operation. Applying a list operation to a scalar or a map (or vice versa) returns error 26 (`OP_NOT_APPLICABLE`). To select and operate on multiple elements at once, use path expression contexts instead.
@@ -271,17 +272,17 @@ The context types above each select a single element at each level. Path express
 
 **Matching and filtering (8.1.1+):**
 
-| Type | Description |
-|------|-------------|
-| `ALL_CHILDREN` | Matches all children of the current Map or List without filtering. |
+| Type                            | Description                                                                                                                                                       |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ALL_CHILDREN`                  | Matches all children of the current Map or List without filtering.                                                                                                |
 | `ALL_CHILDREN_WITH_FILTER(exp)` | Matches children where the filter expression evaluates to true. The filter can assign an aspect of the current element (value, key, or index) to a loop variable. |
 
 **Key selection and combined filtering (8.1.2+):**
 
-| Type | Description |
-|------|-------------|
+| Type                   | Description                                                                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `MAP_KEYS_IN(keys...)` | Select map entries whose keys match any of the provided values. Equivalent to SQL `WHERE key IN (k1, k2, ...)`. Uses the map's internal index for efficient lookup. |
-| `AND_FILTER(exp)` | Apply an additional filter expression at the same level as the preceding context. Entries must satisfy both the preceding context and this filter. |
+| `AND_FILTER(exp)`      | Apply an additional filter expression at the same level as the preceding context. Entries must satisfy both the preceding context and this filter.                  |
 
 **`AND_FILTER` constraints:**
 
@@ -310,16 +311,16 @@ List: `[0, 1, [2, [3, 4], 5, 6], 7, [8, 9]]`
 
 ### Type order (ascending)
 
-1. NIL  
-2. BOOLEAN  
-3. INTEGER  
-4. STRING  
-5. LIST  
-6. MAP  
-7. BYTES  
-8. DOUBLE  
-9. GEOJSON  
-10. INF  
+1. NIL
+2. BOOLEAN
+3. INTEGER
+4. STRING
+5. LIST
+6. MAP
+7. BYTES
+8. DOUBLE
+9. GEOJSON
+10. INF
 
 - Different types compare by type first; same type by value. Maps use this ordering for value-based (rank) operations.
 - **NIL:** singleton, lowest type; used as the lower bound in list and map interval and range operations. It **can** be stored as a list element or a map value and reads back successfully, but it **cannot be used as a map key**. Assigning NIL to a top-level bin **deletes that bin** — and if it is the record's last bin, the record is removed. Two consequences for modeling: never let a nullable field become a top-level bin whose "empty" state is written as NIL, and when a map value is legitimately absent, storing NIL inside the CDT is safe while a NIL map key is not.

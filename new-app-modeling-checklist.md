@@ -10,20 +10,20 @@
 
 Produce and review all items below before implementation starts:
 
-| Output | Required content |
-|--------|------------------|
-| **Domain entity and relationship map (first)** | Core entities, relationship types (1:1 / 1:N / N:M), ownership boundaries, lifecycle notes, cardinality ranges, skew assumptions. |
-| **Access pattern matrix (second)** | Every read/write path on those entities, frequency, latency target, key or query path, expected payload size. |
-| **Key schema** | Namespace, set, key format, key examples, cardinality estimate, skew notes. |
-| **Bin schema** | Bin names, types, constraints, size ranges, growth model, update frequency, ownership. Each bin must pass the bin-extraction checkpoint (4.1) and per-bin justification gate (4.2). |
-| **Example records (JSON)** | One JSON example per set, showing realistic values for all bins. Placed inline immediately after each set's key and bin schema tables. Serves as a concrete reference for reviewers and implementers — makes the record shape unambiguous at a glance. |
-| **Relationship decisions** | 1:1 / 1:N / N:M mapping, owner side, consistency strategy, delete/cascade plan. |
-| **Pattern decision forms (per major 1:N or N:M)** | Completed deterministic consolidation-vs-split worksheet with required inputs, contention math, decision band, and explicit tie-break/exception notes. |
-| **Sizing decision worksheet** | For each major 1:N: child size distribution (min/p50/p95/max), child-count distribution per parent (min/p50/p95/p99/max), aggregate bytes per parent (p95), chosen pattern and explicit "why not" alternatives. |
-| **Index rationale** | Why each SI/set index/expression index exists, expected selectivity, memory impact. |
-| **Deployment size constraints** | The target namespace's configured **`max-record-size`**, stated explicitly. This bounds every consolidation decision in this checklist, so it is an input, not an outcome. If it cannot be obtained, record `max-record-size: 1 MiB (ASSUMED — server default)` as an approved assumption with the reconsider trigger *"confirm before implementation; if the namespace is configured lower, re-run the sizing worksheet."* Never assume the 8 MiB architectural ceiling. |
-| **Growth and hot-key plan** | Record growth limits, split or overflow trigger, sharding strategy for hot keys. |
-| **Validation plan** | Synthetic workload tests, edge-case tests, failure-mode tests, acceptance thresholds. |
+| Output                                            | Required content                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Domain entity and relationship map (first)**    | Core entities, relationship types (1:1 / 1:N / N:M), ownership boundaries, lifecycle notes, cardinality ranges, skew assumptions.                                                                                                                                                                                                                                                                                                                                         |
+| **Access pattern matrix (second)**                | Every read/write path on those entities, frequency, latency target, key or query path, expected payload size.                                                                                                                                                                                                                                                                                                                                                             |
+| **Key schema**                                    | Namespace, set, key format, key examples, cardinality estimate, skew notes.                                                                                                                                                                                                                                                                                                                                                                                               |
+| **Bin schema**                                    | Bin names, types, constraints, size ranges, growth model, update frequency, ownership. Each bin must pass the bin-extraction checkpoint (4.1) and per-bin justification gate (4.2).                                                                                                                                                                                                                                                                                       |
+| **Example records (JSON)**                        | One JSON example per set, showing realistic values for all bins. Placed inline immediately after each set's key and bin schema tables. Serves as a concrete reference for reviewers and implementers — makes the record shape unambiguous at a glance.                                                                                                                                                                                                                    |
+| **Relationship decisions**                        | 1:1 / 1:N / N:M mapping, owner side, consistency strategy, delete/cascade plan.                                                                                                                                                                                                                                                                                                                                                                                           |
+| **Pattern decision forms (per major 1:N or N:M)** | Completed deterministic consolidation-vs-split worksheet with required inputs, contention math, decision band, and explicit tie-break/exception notes.                                                                                                                                                                                                                                                                                                                    |
+| **Sizing decision worksheet**                     | For each major 1:N: child size distribution (min/p50/p95/max), child-count distribution per parent (min/p50/p95/p99/max), aggregate bytes per parent (p95), chosen pattern and explicit "why not" alternatives.                                                                                                                                                                                                                                                           |
+| **Index rationale**                               | Why each SI/set index/expression index exists, expected selectivity, memory impact.                                                                                                                                                                                                                                                                                                                                                                                       |
+| **Deployment size constraints**                   | The target namespace's configured **`max-record-size`**, stated explicitly. This bounds every consolidation decision in this checklist, so it is an input, not an outcome. If it cannot be obtained, record `max-record-size: 1 MiB (ASSUMED — server default)` as an approved assumption with the reconsider trigger _"confirm before implementation; if the namespace is configured lower, re-run the sizing worksheet."_ Never assume the 8 MiB architectural ceiling. |
+| **Growth and hot-key plan**                       | Record growth limits, split or overflow trigger, sharding strategy for hot keys.                                                                                                                                                                                                                                                                                                                                                                                          |
+| **Validation plan**                               | Synthetic workload tests, edge-case tests, failure-mode tests, acceptance thresholds.                                                                                                                                                                                                                                                                                                                                                                                     |
 
 If any item is missing, the data model is not ready for implementation.
 
@@ -35,7 +35,7 @@ Before drafting any concrete data model, explicitly ask clarifying questions for
 
 - **PRD scope and invariants** (what is in/out of scope, immutable rules, delete semantics).
 - **Entity definitions and lifecycle ownership** (who can create/update/delete each object, placeholder vs hard delete behavior).
-- **Access patterns and correctness/latency expectations** (read/write paths, ordering, pagination, consistency level). If composite IDs use `created_at_canonical` or similar placeholder terms, require explicit resolution of the string format (encoding, precision, timezone, allowed characters, sort behavior, collision suffix policy) in this gate. Do not proceed with an unresolved canonical format. (Note: `created_at_canonical` is an ID-recipe variable, not a bin name — see [id-selection-guidance.md](id-selection-guidance.md) section 6.) When multiple read shapes compete for "dominant" on the same entity group (e.g., root-thread reads AND single-node reads for comments), require the stakeholder to provide approximate read-share percentages. If unavailable, mark `primary_read_shape` as `BLOCKED_MISSING_INPUT` rather than choosing subjectively. **Fallback for autonomous modeling:** If read-share percentages are unavailable and cannot be obtained (autonomous modeling pass, stakeholder unreachable), apply the **access-pattern inference default** — classify the read shape with the strongest structural signal (the one that determines record layout, typically the shape used by the dominant display surface) as primary. Document the inferred split as an `ASSUMPTION` with a reconsider trigger: *"If measured read traffic shows the secondary shape exceeds N% of reads, reassess pattern choice."* This allows autonomous modeling to proceed without blocking while preserving an explicit audit trail.
+- **Access patterns and correctness/latency expectations** (read/write paths, ordering, pagination, consistency level). If composite IDs use `created_at_canonical` or similar placeholder terms, require explicit resolution of the string format (encoding, precision, timezone, allowed characters, sort behavior, collision suffix policy) in this gate. Do not proceed with an unresolved canonical format. (Note: `created_at_canonical` is an ID-recipe variable, not a bin name — see [id-selection-guidance.md](id-selection-guidance.md) section 6.) When multiple read shapes compete for "dominant" on the same entity group (e.g., root-thread reads AND single-node reads for comments), require the stakeholder to provide approximate read-share percentages. If unavailable, mark `primary_read_shape` as `BLOCKED_MISSING_INPUT` rather than choosing subjectively. **Fallback for autonomous modeling:** If read-share percentages are unavailable and cannot be obtained (autonomous modeling pass, stakeholder unreachable), apply the **access-pattern inference default** — classify the read shape with the strongest structural signal (the one that determines record layout, typically the shape used by the dominant display surface) as primary. Document the inferred split as an `ASSUMPTION` with a reconsider trigger: _"If measured read traffic shows the secondary shape exceeds N% of reads, reassess pattern choice."_ This allows autonomous modeling to proceed without blocking while preserving an explicit audit trail.
 - **Object growth assumptions** (typical/max cardinality, skew/outliers, growth over time, fan-out risk).
 - **Deployment size constraint** — the target namespace's configured **`max-record-size`**. Every consolidation-vs-split decision downstream is bounded by it, and the server default (1 MiB) is far below the 8 MiB architectural ceiling that models are often mistakenly sized against. Ask for the configured value. If it is unavailable, proceed under the documented default as an approved assumption rather than blocking, and flag it for confirmation before implementation.
 
@@ -138,10 +138,10 @@ Rule: optimize key design for common reads to be single get or bounded batch get
 
 When the same record schema (same bins, same CDT pattern, same access operations) applies to multiple parent entity types — for example, Twitter likes on tweets and likes on comments both store an ordered list of liker handles keyed by content ID — choose between a single shared set and per-parent-type sets.
 
-| Approach | Mechanism | Advantages | Disadvantages |
-|----------|-----------|------------|---------------|
-| **Single set + key prefix** | One set (e.g., `likes`), key = `tweet:{id}` or `comment:{id}` | One set to declare and maintain; one SI definition covers all types; simpler mental model | Key-prefix convention must be documented and enforced; set-level operations (truncate, count, scan) cannot scope to one parent type |
-| **Per-parent-type sets** | Separate sets (e.g., `likes_tweet`, `likes_comment`), key = `content_id` | Natural Aerospike set boundaries; set-level truncate/count/scan scopes per type; SI definitions can differ per type if needed | More sets to declare; SI must be defined per set if needed; mental overhead when the record schema is identical across sets |
+| Approach                    | Mechanism                                                                | Advantages                                                                                                                    | Disadvantages                                                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Single set + key prefix** | One set (e.g., `likes`), key = `tweet:{id}` or `comment:{id}`            | One set to declare and maintain; one SI definition covers all types; simpler mental model                                     | Key-prefix convention must be documented and enforced; set-level operations (truncate, count, scan) cannot scope to one parent type |
+| **Per-parent-type sets**    | Separate sets (e.g., `likes_tweet`, `likes_comment`), key = `content_id` | Natural Aerospike set boundaries; set-level truncate/count/scan scopes per type; SI definitions can differ per type if needed | More sets to declare; SI must be defined per set if needed; mental overhead when the record schema is identical across sets         |
 
 **Decision heuristic:**
 
@@ -216,7 +216,7 @@ If any bin cannot pass this gate, mark it as `OPTIONAL` or remove it from the co
 
 Use [concepts-and-patterns.md](concepts-and-patterns.md) and [one-to-many-relationships.md](one-to-many-relationships.md), then document the selected pattern and why.
 
-**Growth behavior is the primary split signal.** Immutable fields, slowly-changing fields (updated in place), and small slowly-growing lists belong together on the same record by default. The reason to split data into a separate record is when a portion of the record grows by accumulation (list appends, map key additions) at a rate or to a size that would degrade performance or approach the namespace's configured `max-record-size`. Evaluate record size *trajectory*, not just current size — a 2 KiB list that never exceeds 5 KiB is not a split candidate; a 2 KiB list that grows by 100 bytes/day with no bound is.
+**Growth behavior is the primary split signal.** Immutable fields, slowly-changing fields (updated in place), and small slowly-growing lists belong together on the same record by default. The reason to split data into a separate record is when a portion of the record grows by accumulation (list appends, map key additions) at a rate or to a size that would degrade performance or approach the namespace's configured `max-record-size`. Evaluate record size _trajectory_, not just current size — a 2 KiB list that never exceeds 5 KiB is not a split candidate; a 2 KiB list that grows by 100 bytes/day with no bound is.
 
 ### When consolidation is a good default
 
@@ -326,10 +326,12 @@ When required inputs are missing, the correct output is a partially-filled decis
 > **Status: `BLOCKED_MISSING_INPUT`**
 >
 > Confirmed inputs:
+>
 > - Dominant read shape: content-driven (count display). Source: Data modeling brief.
 > - Uniqueness: one like per user per item. Source: PRD.
 >
 > Missing inputs:
+>
 > - Like count per tweet (p50/p95/p99): **NOT IN REQUIREMENTS.** The sizing reference covers comments and retweets but not likes.
 >   - **Question:** "What is the expected number of likes per tweet at p50, p95, and p99? Pattern selection between list-on-parent vs separate record depends on whether p99 likers fit on the content record without exceeding the Goldilocks band."
 > - Like count per comment (p50/p95/p99): **NOT IN REQUIREMENTS.**
@@ -387,20 +389,20 @@ Minimum targeted questions:
 
 #### Clarification mapping (use when input is missing)
 
-| Required input | Typical source | Question template if missing |
-|---|---|---|
-| `events_per_root_active_window` | Traffic analysis, sizing reference | "How many [child] writes per [root] are expected in the active window?" |
-| `active_window_sec` | Traffic analysis, stakeholder | "Over what time window are [child] writes concentrated (seconds)?" |
-| `contention_window_ms` | Ops/infra team, default 8 ms | "What is the same-key contention window for your Aerospike deployment?" |
-| `burst_factor_p99_over_avg` | Traffic analysis, default 10 | "What is the p99-to-average burst ratio for [child] writes?" |
-| `avg_child_payload_bytes` | Sizing reference, sample data | "What is the average [child] payload size in bytes?" |
-| `projected_child_count_p99` | Sizing reference, traffic analysis | "What is the expected [child] count per [root] at p99?" |
-| `projected_record_size_kib_p99` | Sizing worksheet (computed) | "What is the projected record size at p99 child count and payload?" |
-| `growth_horizon_days` | Stakeholder, product roadmap | "Over what time horizon should the model remain healthy without re-architecture?" |
-| `write_slo_p95_ms` | Stakeholder, SLA | "What is the required p95 write latency for [child] operations?" |
-| `primary_read_shape` | Access pattern analysis | "Is the dominant read path whole-tree/full-set or single-node/single-element? (see glossary in 5.0)" |
-| `delete_semantics` | PRD, stakeholder | "What delete/cascade behavior is mandatory for [root] and its [children]?" |
-| `load_test_done` | Engineering team | "Has a load test been run for this workload? If so, what were the key-busy rate and write p95?" |
+| Required input                  | Typical source                     | Question template if missing                                                                         |
+| ------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `events_per_root_active_window` | Traffic analysis, sizing reference | "How many [child] writes per [root] are expected in the active window?"                              |
+| `active_window_sec`             | Traffic analysis, stakeholder      | "Over what time window are [child] writes concentrated (seconds)?"                                   |
+| `contention_window_ms`          | Ops/infra team, default 8 ms       | "What is the same-key contention window for your Aerospike deployment?"                              |
+| `burst_factor_p99_over_avg`     | Traffic analysis, default 10       | "What is the p99-to-average burst ratio for [child] writes?"                                         |
+| `avg_child_payload_bytes`       | Sizing reference, sample data      | "What is the average [child] payload size in bytes?"                                                 |
+| `projected_child_count_p99`     | Sizing reference, traffic analysis | "What is the expected [child] count per [root] at p99?"                                              |
+| `projected_record_size_kib_p99` | Sizing worksheet (computed)        | "What is the projected record size at p99 child count and payload?"                                  |
+| `growth_horizon_days`           | Stakeholder, product roadmap       | "Over what time horizon should the model remain healthy without re-architecture?"                    |
+| `write_slo_p95_ms`              | Stakeholder, SLA                   | "What is the required p95 write latency for [child] operations?"                                     |
+| `primary_read_shape`            | Access pattern analysis            | "Is the dominant read path whole-tree/full-set or single-node/single-element? (see glossary in 5.0)" |
+| `delete_semantics`              | PRD, stakeholder                   | "What delete/cascade behavior is mandatory for [root] and its [children]?"                           |
+| `load_test_done`                | Engineering team                   | "Has a load test been run for this workload? If so, what were the key-busy rate and write p95?"      |
 
 If the source column says the input should come from a document that exists but doesn't contain the answer, mark `MISSING` and ask.
 
@@ -544,15 +546,15 @@ If any required input is missing or low confidence:
 
 #### Clarification mapping (use when input is missing)
 
-| Required input | Typical source | Question template if missing |
-|---|---|---|
-| child count per parent (p50/p95/p99) | Sizing reference, traffic analysis | "What is the expected [child] count per [parent] at p50, p95, and p99?" |
-| child payload size (p50/p95/max) | Sizing reference, sample data | "What is the expected [child] size distribution (p50, p95, max bytes)?" |
-| dominant read shape | Access pattern analysis | "Is the primary read for [parent+children] full-set, subset, or single-element? (see glossary in 5.0)" |
-| write rate and burst profile | Traffic analysis, stakeholder | "How many [child] writes per [parent] per hour at sustained and peak load?" |
-| lifecycle coupling | PRD, stakeholder | "When a [parent] is deleted, are all [children] deleted too, or do they have independent lifecycle?" |
-| correctness requirement | PRD, stakeholder | "Does [parent+children] require transactional consistency or is eventual consistency acceptable?" |
-| growth horizon and capacity assumptions | Stakeholder, product roadmap | "Over what time horizon and at what scale should the model remain healthy?" |
+| Required input                          | Typical source                     | Question template if missing                                                                           |
+| --------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| child count per parent (p50/p95/p99)    | Sizing reference, traffic analysis | "What is the expected [child] count per [parent] at p50, p95, and p99?"                                |
+| child payload size (p50/p95/max)        | Sizing reference, sample data      | "What is the expected [child] size distribution (p50, p95, max bytes)?"                                |
+| dominant read shape                     | Access pattern analysis            | "Is the primary read for [parent+children] full-set, subset, or single-element? (see glossary in 5.0)" |
+| write rate and burst profile            | Traffic analysis, stakeholder      | "How many [child] writes per [parent] per hour at sustained and peak load?"                            |
+| lifecycle coupling                      | PRD, stakeholder                   | "When a [parent] is deleted, are all [children] deleted too, or do they have independent lifecycle?"   |
+| correctness requirement                 | PRD, stakeholder                   | "Does [parent+children] require transactional consistency or is eventual consistency acceptable?"      |
+| growth horizon and capacity assumptions | Stakeholder, product roadmap       | "Over what time horizon and at what scale should the model remain healthy?"                            |
 
 If the source column says the input should come from a document that exists but doesn't contain the answer, mark `MISSING` and ask.
 
@@ -605,14 +607,14 @@ If query directionality, uniqueness requirements, or degree skew is unknown:
 
 #### Clarification mapping (use when input is missing)
 
-| Required input | Typical source | Question template if missing |
-|---|---|---|
-| dominant query directions | Access pattern analysis | "Is the primary query direction [A]->[B], [B]->[A], or both equally?" |
-| edge metadata requirements | PRD, stakeholder | "What metadata (timestamps, state, attributes) must be stored on each [A]-[B] edge?" |
-| uniqueness/idempotency requirements | PRD, stakeholder | "Must [A]-[B] edges be unique? What happens on duplicate create attempts?" |
-| edge churn rate | Traffic analysis, stakeholder | "How frequently are [A]-[B] edges created, updated, or deleted?" |
-| degree distribution and skew (p50/p95/p99) | Sizing reference, traffic analysis | "What is the expected degree per [A] and per [B] at p50, p95, and p99?" |
-| delete/cascade semantics | PRD, stakeholder | "When [A] or [B] is deleted, what happens to the edges? Cascade delete, orphan, or placeholder?" |
+| Required input                             | Typical source                     | Question template if missing                                                                     |
+| ------------------------------------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------ |
+| dominant query directions                  | Access pattern analysis            | "Is the primary query direction [A]->[B], [B]->[A], or both equally?"                            |
+| edge metadata requirements                 | PRD, stakeholder                   | "What metadata (timestamps, state, attributes) must be stored on each [A]-[B] edge?"             |
+| uniqueness/idempotency requirements        | PRD, stakeholder                   | "Must [A]-[B] edges be unique? What happens on duplicate create attempts?"                       |
+| edge churn rate                            | Traffic analysis, stakeholder      | "How frequently are [A]-[B] edges created, updated, or deleted?"                                 |
+| degree distribution and skew (p50/p95/p99) | Sizing reference, traffic analysis | "What is the expected degree per [A] and per [B] at p50, p95, and p99?"                          |
+| delete/cascade semantics                   | PRD, stakeholder                   | "When [A] or [B] is deleted, what happens to the edges? Cascade delete, orphan, or placeholder?" |
 
 If the source column says the input should come from a document that exists but doesn't contain the answer, mark `MISSING` and ask.
 
@@ -678,15 +680,15 @@ If traversal read shape, ordering semantics, or delete semantics are unclear:
 
 #### Clarification mapping (use when input is missing)
 
-| Required input | Typical source | Question template if missing |
-|---|---|---|
-| dominant traversal read | Access pattern analysis | "Is the primary read pattern whole-tree, subtree, or single-node for [hierarchy]? If multiple read shapes compete, what percentage of total reads does each represent? (see glossary in 5.0)" |
-| update profile | Access pattern analysis, PRD | "What mutations are most common — node edits, subtree moves/deletes, or ranking updates?" |
-| expected depth and breadth (p50/p95/p99) | Sizing reference, domain analysis | "What is the expected depth and breadth of [hierarchy] at p50, p95, and p99?" |
-| ordering semantics | PRD, stakeholder | "How are nodes in [hierarchy] ordered — by time, rank, or traversal position only?" |
-| delete semantics | PRD, stakeholder | "When a node in [hierarchy] is deleted, is it a placeholder, hard-delete subtree, or mixed?" |
-| growth horizon and size projections per root | Sizing reference, stakeholder | "What is the projected size per [root] over the retention horizon?" |
-| contention profile on root-level mutations | Traffic analysis, stakeholder | "How many concurrent writers can mutate the same [root] during peak load?" |
+| Required input                               | Typical source                    | Question template if missing                                                                                                                                                                  |
+| -------------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| dominant traversal read                      | Access pattern analysis           | "Is the primary read pattern whole-tree, subtree, or single-node for [hierarchy]? If multiple read shapes compete, what percentage of total reads does each represent? (see glossary in 5.0)" |
+| update profile                               | Access pattern analysis, PRD      | "What mutations are most common — node edits, subtree moves/deletes, or ranking updates?"                                                                                                     |
+| expected depth and breadth (p50/p95/p99)     | Sizing reference, domain analysis | "What is the expected depth and breadth of [hierarchy] at p50, p95, and p99?"                                                                                                                 |
+| ordering semantics                           | PRD, stakeholder                  | "How are nodes in [hierarchy] ordered — by time, rank, or traversal position only?"                                                                                                           |
+| delete semantics                             | PRD, stakeholder                  | "When a node in [hierarchy] is deleted, is it a placeholder, hard-delete subtree, or mixed?"                                                                                                  |
+| growth horizon and size projections per root | Sizing reference, stakeholder     | "What is the projected size per [root] over the retention horizon?"                                                                                                                           |
+| contention profile on root-level mutations   | Traffic analysis, stakeholder     | "How many concurrent writers can mutate the same [root] during peak load?"                                                                                                                    |
 
 If the source column says the input should come from a document that exists but doesn't contain the answer, mark `MISSING` and ask.
 
@@ -733,11 +735,11 @@ The distinction matters: if the application likes a comment by calling `map_put`
 
 #### Ordering contract: sort-dimension pattern
 
-**How read shape affects the role of auxiliaries.** The classified read shape determines whether auxiliary ordering structures serve as *access path infrastructure* or *optimization metadata*:
+**How read shape affects the role of auxiliaries.** The classified read shape determines whether auxiliary ordering structures serve as _access path infrastructure_ or _optimization metadata_:
 
 - **Consolidated hierarchy (whole-tree / subtree dominant):** A single GET returns the full record. All data — primary tree and auxiliaries — arrives in one round-trip. The auxiliaries avoid client-side recomputation (e.g., sorting 500+ comments by score) but are not separate query endpoints. If an auxiliary were dropped, the client could still derive the ordering from the primary structure at the cost of CPU and latency.
 
-- **Adjacency-per-node (single-node dominant):** Children live in separate records. An auxiliary ordering structure on the root (e.g., a ranked list of child IDs) is the *only* way to serve "top-N by score" without scanning all child records. Here the auxiliary is load-bearing infrastructure, not optimization.
+- **Adjacency-per-node (single-node dominant):** Children live in separate records. An auxiliary ordering structure on the root (e.g., a ranked list of child IDs) is the _only_ way to serve "top-N by score" without scanning all child records. Here the auxiliary is load-bearing infrastructure, not optimization.
 
 This distinction matters for sizing and failure-mode reasoning: in a consolidated design, a corrupted or missing auxiliary is recoverable from the primary structure; in a split design, it is not.
 
@@ -803,15 +805,15 @@ If event-rate distribution, read shape, or mutation semantics are unclear:
 
 #### Clarification mapping (use when input is missing)
 
-| Required input | Typical source | Question template if missing |
-|---|---|---|
-| event rate distribution (p50/p95/p99) | Traffic analysis, sizing reference | "What is the expected [event] rate per [actor/recipient] at p50, p95, and p99?" |
-| read shape | Access pattern analysis | "Is the primary read pattern latest-page, deep-pagination, or filter-by-actor/type?" |
-| mutation semantics | PRD, stakeholder | "What mutations are required — mark-read, delete-by-actor, expiry/TTL, or a combination?" |
-| mark-read consumption model (if mark-read declared) | PRD, access pattern analysis | "Does the client paginate all events (with inline read/unread status) and then batch-mark displayed items as read, or does the client request only unread events from the server?" |
-| retention horizon and TTL policy shape | PRD, stakeholder, compliance | "What is the retention horizon for [events]? Is TTL record-level, item-level, or both?" |
-| read/write latency targets | Stakeholder, SLA | "What are the p50/p95 latency targets for [event] reads and writes?" |
-| expected cleanup workload | PRD, stakeholder | "What cleanup side effects occur on block/delete (e.g., remove events from blocked user)?" |
+| Required input                                      | Typical source                     | Question template if missing                                                                                                                                                       |
+| --------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| event rate distribution (p50/p95/p99)               | Traffic analysis, sizing reference | "What is the expected [event] rate per [actor/recipient] at p50, p95, and p99?"                                                                                                    |
+| read shape                                          | Access pattern analysis            | "Is the primary read pattern latest-page, deep-pagination, or filter-by-actor/type?"                                                                                               |
+| mutation semantics                                  | PRD, stakeholder                   | "What mutations are required — mark-read, delete-by-actor, expiry/TTL, or a combination?"                                                                                          |
+| mark-read consumption model (if mark-read declared) | PRD, access pattern analysis       | "Does the client paginate all events (with inline read/unread status) and then batch-mark displayed items as read, or does the client request only unread events from the server?" |
+| retention horizon and TTL policy shape              | PRD, stakeholder, compliance       | "What is the retention horizon for [events]? Is TTL record-level, item-level, or both?"                                                                                            |
+| read/write latency targets                          | Stakeholder, SLA                   | "What are the p50/p95 latency targets for [event] reads and writes?"                                                                                                               |
+| expected cleanup workload                           | PRD, stakeholder                   | "What cleanup side effects occur on block/delete (e.g., remove events from blocked user)?"                                                                                         |
 
 If the source column says the input should come from a document that exists but doesn't contain the answer, mark `MISSING` and ask.
 
@@ -851,9 +853,9 @@ Contrast: a low-activity notification system with ~5 notifications/day at p95, e
 
 The normative sizing rule above determines whether day-bucketed storage is required (consolidated record too large). But day buckets themselves can exceed the Goldilocks band when per-item payloads are large. Compute the per-bucket size: `events_per_day_p95 × avg_event_payload_bytes`. If a single day bucket exceeds 128 KiB at p95, or approaches the configured `max-record-size` at max, the modeler must choose one of two responses.
 
-**Response A — Sub-day bucketing (smaller time windows).** Split from day buckets to hour buckets (or 6-hour, 4-hour, etc.), distributing the same full-content entries across more buckets. Prefer this when: per-item payload is moderate and the event *rate* drives the oversized bucket; content is append-only with no edit/delete CRUD; and burst traffic does not concentrate enough to produce oversized hour buckets.
+**Response A — Sub-day bucketing (smaller time windows).** Split from day buckets to hour buckets (or 6-hour, 4-hour, etc.), distributing the same full-content entries across more buckets. Prefer this when: per-item payload is moderate and the event _rate_ drives the oversized bucket; content is append-only with no edit/delete CRUD; and burst traffic does not concentrate enough to produce oversized hour buckets.
 
-Trade-offs: more buckets to scan for pagination (e.g., 90 days × 24 hours = 2,160 buckets vs. 90 day buckets), higher PI cost from more bucket records, pagination must span more bucket boundaries, and content edit/delete remains a CDT mutation inside a bucket. Verify the sub-day bucket at *burst* rate, not just the average: if `burst_events_per_hour_p95 × avg_event_payload_bytes` still exceeds the Goldilocks band, sub-day bucketing alone is insufficient.
+Trade-offs: more buckets to scan for pagination (e.g., 90 days × 24 hours = 2,160 buckets vs. 90 day buckets), higher PI cost from more bucket records, pagination must span more bucket boundaries, and content edit/delete remains a CDT mutation inside a bucket. Verify the sub-day bucket at _burst_ rate, not just the average: if `burst_events_per_hour_p95 × avg_event_payload_bytes` still exceeds the Goldilocks band, sub-day bucketing alone is insufficient.
 
 **Response B — Thin index + batch-read content records.** Day buckets hold thin ordering entries — just enough fields to reconstruct content-record keys for batch-read (e.g., `[created_at_ms, sender_handle]` at ~35 bytes). Content lives in separate one-per-record storage with per-record TTL. The bucket becomes a pagination index, not a content store. Prefer this when: per-item payload is large (hundreds of bytes to KiB); content has independent CRUD needs (edit overwrites a record, delete placeholders it, per-record TTL handles retention); or even sub-day buckets are marginal at burst rates.
 
@@ -867,13 +869,13 @@ Trade-offs: higher PI cost (one PI entry per content record + one per day bucket
 
 **Worked example — messaging channel history.** 250 msgs/day at p95, ~800 bytes per message, 120-day retention.
 
-- *Full-content day bucket:* 250 × 800 = 200 KiB (above Goldilocks). At max (1200 msgs/day): 960 KiB per bucket, approaching risk zone with large messages.
-- *Sub-day (hour) bucket:* 250 msgs / ~10 active hours = ~25 msgs/hour × 800 = ~20 KiB (in Goldilocks). But peak hour at max could spike to 250+ msgs/hour × 800 = 200 KiB. Message edit/delete requires CDT mutation inside the bucket.
-- *Thin index day bucket:* 250 × 35 bytes = ~9 KiB (well within Goldilocks). Content records at ~800 bytes each with per-record TTL. Message edit = single record overwrite. Message delete = single record placeholder. At max: 1200 × 35 = 42 KiB (still comfortable).
+- _Full-content day bucket:_ 250 × 800 = 200 KiB (above Goldilocks). At max (1200 msgs/day): 960 KiB per bucket, approaching risk zone with large messages.
+- _Sub-day (hour) bucket:_ 250 msgs / ~10 active hours = ~25 msgs/hour × 800 = ~20 KiB (in Goldilocks). But peak hour at max could spike to 250+ msgs/hour × 800 = 200 KiB. Message edit/delete requires CDT mutation inside the bucket.
+- _Thin index day bucket:_ 250 × 35 bytes = ~9 KiB (well within Goldilocks). Content records at ~800 bytes each with per-record TTL. Message edit = single record overwrite. Message delete = single record placeholder. At max: 1200 × 35 = 42 KiB (still comfortable).
 
 In this case, thin index is preferred: messages have active CRUD (edit, delete) and the per-item payload is large enough that hour-bucket burst sizing is marginal.
 
-**Classification.** This hybrid lives within Pack 4. The timeline *index* is a Pack 4 structure — subject to Pack 4 sizing, mutation-compatibility, and element-0 checks. The content records are standalone entities with standard record-per-entity design. Route each through the appropriate analysis independently.
+**Classification.** This hybrid lives within Pack 4. The timeline _index_ is a Pack 4 structure — subject to Pack 4 sizing, mutation-compatibility, and element-0 checks. The content records are standalone entities with standard record-per-entity design. Route each through the appropriate analysis independently.
 
 #### TTL strategy guidance
 
@@ -924,12 +926,12 @@ When the dominant mutations are key-targeted (mark-read by event ID, dedup by na
 
 **Trade-offs vs ordered list:**
 
-| Dimension | Map-keyed | Ordered list of tuples |
-|-----------|-----------|----------------------|
-| Key-targeted mutation | O(log N) via `map_put` / `map_remove_by_key` | O(N) scan or requires element-0 = identity to use `list_get_by_value_interval` |
-| Time-ordered pagination | `map_get_by_rank_range` when the value's leading element is the timestamp (rank = time order, no auxiliary needed); otherwise requires parallel order list or client-side sort | Native via `list_get_by_index_range` |
-| Dedup on write | Implicit — map keys are unique | Requires `ADD_UNIQUE` + identity at element-0 |
-| Storage overhead | Map key + value per entry; slightly larger than equivalent tuple | Compact ordered tuples |
+| Dimension               | Map-keyed                                                                                                                                                                      | Ordered list of tuples                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Key-targeted mutation   | O(log N) via `map_put` / `map_remove_by_key`                                                                                                                                   | O(N) scan or requires element-0 = identity to use `list_get_by_value_interval` |
+| Time-ordered pagination | `map_get_by_rank_range` when the value's leading element is the timestamp (rank = time order, no auxiliary needed); otherwise requires parallel order list or client-side sort | Native via `list_get_by_index_range`                                           |
+| Dedup on write          | Implicit — map keys are unique                                                                                                                                                 | Requires `ADD_UNIQUE` + identity at element-0                                  |
+| Storage overhead        | Map key + value per entry; slightly larger than equivalent tuple                                                                                                               | Compact ordered tuples                                                         |
 
 **When appropriate:** (a) the element-0 gate selects identity-first, AND (b) key-targeted mutations require individual-event server-side operations beyond post-display batch updates — specifically: write-path dedup under at-least-once delivery, server-filtered-unread queries, or frequent per-event status toggles (typing indicators, presence), AND (c) time-ordered pagination can tolerate `map_get_by_rank_range` on the value's leading timestamp element, client-side sort, or a parallel order list.
 
@@ -990,17 +992,17 @@ If side-effect fan-out, consistency requirement, reconciliation lag, or pending-
 
 #### Clarification mapping (use when input is missing)
 
-| Required input | Typical source | Question template if missing |
-|---|---|---|
-| side-effect fan-out (`p50/p95/p99`) | Access pattern matrix, sizing worksheet | "For [operation], how many related records are typically touched at p50, p95, and p99?" |
-| initiating-operation latency target (`p95`) | SLA/SLO, stakeholder | "What p95 latency must [operation] meet at user-facing API level?" |
-| side-effect consistency requirement | PRD, stakeholder | "Must side effects be complete before response, or can they converge within a bounded delay?" |
-| acceptable reconciliation lag | Product/ops stakeholder | "What is the maximum allowed delay before all cleanup side effects are complete?" |
-| idempotency posture | Engineering design | "Are all cleanup mutations safe to retry without double-apply effects?" |
-| failure/retry policy | Ops/engineering | "What retry/backoff and escalation policy is required for repeated cleanup failures?" |
-| read behavior during pending cleanup | Product requirements | "While cleanup is pending, should entities be hidden, shown as placeholders, or mixed by surface?" |
-| operational trigger model | Runtime ops | "Should cleanup run hourly/daily, on-demand via endpoint, or event-triggered?" |
-| observability requirements | SRE/ops | "Which cleanup metrics and alerts are mandatory?" |
+| Required input                              | Typical source                          | Question template if missing                                                                       |
+| ------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| side-effect fan-out (`p50/p95/p99`)         | Access pattern matrix, sizing worksheet | "For [operation], how many related records are typically touched at p50, p95, and p99?"            |
+| initiating-operation latency target (`p95`) | SLA/SLO, stakeholder                    | "What p95 latency must [operation] meet at user-facing API level?"                                 |
+| side-effect consistency requirement         | PRD, stakeholder                        | "Must side effects be complete before response, or can they converge within a bounded delay?"      |
+| acceptable reconciliation lag               | Product/ops stakeholder                 | "What is the maximum allowed delay before all cleanup side effects are complete?"                  |
+| idempotency posture                         | Engineering design                      | "Are all cleanup mutations safe to retry without double-apply effects?"                            |
+| failure/retry policy                        | Ops/engineering                         | "What retry/backoff and escalation policy is required for repeated cleanup failures?"              |
+| read behavior during pending cleanup        | Product requirements                    | "While cleanup is pending, should entities be hidden, shown as placeholders, or mixed by surface?" |
+| operational trigger model                   | Runtime ops                             | "Should cleanup run hourly/daily, on-demand via endpoint, or event-triggered?"                     |
+| observability requirements                  | SRE/ops                                 | "Which cleanup metrics and alerts are mandatory?"                                                  |
 
 If the source column says the input should come from a document that exists but doesn't contain the answer, mark `MISSING` and ask.
 
@@ -1034,11 +1036,11 @@ If the source column says the input should come from a document that exists but 
 
 When the cleanup target is time-bucketed records (Pack 4 day buckets), the discovery structure must enumerate which buckets exist. Three patterns:
 
-| Pattern | Mechanism | Normal-operation cost | Best when |
-|---------|-----------|----------------------|-----------|
-| **1. Activity-day list on parent** | Parent record (e.g., channel) maintains an ordered list of `YYYY-MM-DD` strings for days with activity. Append on write via `ADD_UNIQUE`. Cleanup iterates this list to construct bucket keys. | One list append per active day (deduplicated via `ADD_UNIQUE`). | Retention is long or unbounded. Avoids scanning years of date keys. Parent record already exists and the day list stays small relative to other bins. |
-| **2. Date-range iteration from metadata** | Compute date range from parent creation date to now (or deletion date). Iterate day keys deterministically. | Zero — no companion structure. | Retention is short and bounded (e.g., 90-day window). Overhead of attempting reads on non-existent bucket keys (`KEY_NOT_FOUND` returns cheaply) is tolerable. |
-| **3. SI on parent-id bin within bucket set** | Secondary index on the parent identifier bin across all bucket records. Query returns all buckets for the parent. | SI memory for the indexed bin. | SI already exists for other access patterns. Adding a purpose-built SI solely for cleanup is usually not justified. |
+| Pattern                                      | Mechanism                                                                                                                                                                                      | Normal-operation cost                                           | Best when                                                                                                                                                      |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Activity-day list on parent**           | Parent record (e.g., channel) maintains an ordered list of `YYYY-MM-DD` strings for days with activity. Append on write via `ADD_UNIQUE`. Cleanup iterates this list to construct bucket keys. | One list append per active day (deduplicated via `ADD_UNIQUE`). | Retention is long or unbounded. Avoids scanning years of date keys. Parent record already exists and the day list stays small relative to other bins.          |
+| **2. Date-range iteration from metadata**    | Compute date range from parent creation date to now (or deletion date). Iterate day keys deterministically.                                                                                    | Zero — no companion structure.                                  | Retention is short and bounded (e.g., 90-day window). Overhead of attempting reads on non-existent bucket keys (`KEY_NOT_FOUND` returns cheaply) is tolerable. |
+| **3. SI on parent-id bin within bucket set** | Secondary index on the parent identifier bin across all bucket records. Query returns all buckets for the parent.                                                                              | SI memory for the indexed bin.                                  | SI already exists for other access patterns. Adding a purpose-built SI solely for cleanup is usually not justified.                                            |
 
 **Decision heuristic:** Use pattern 1 when retention is long or unbounded; use pattern 2 when retention is short and bounded; use pattern 3 only if the SI already exists for other purposes. Document the selected pattern and its normal-operation cost in the decision record.
 
@@ -1092,13 +1094,13 @@ The counter-snapshot pattern addresses this class of problem:
 
 #### Required inputs (before locking the pattern)
 
-| Input | Description | Question if missing |
-|-------|-------------|---------------------|
-| `observer_count_p99` | How many observers per producer (e.g., channel members) | "How many users observe the same [producer] at p99?" |
-| `event_rate_p99` | Events per producer per day (e.g., messages per channel per day) | "How many [events] per [producer] per day at p99?" |
-| `derived_metric_read_slo` | Latency target for the metric query (per-producer and batch) | "What is the required p95 latency for computing [metric] per [producer] and across all [producers] for one observer?" |
-| `batch_metric_read_shape` | Single-producer query vs batch across all producers for one observer | "Is the primary read single-[producer] or batch across all [producers] the observer belongs to?" |
-| `delete_impact_posture` | Over-count acceptable, or exact count required | "When a [event] is deleted, is it acceptable for the [metric] to temporarily over-count until the observer's next visit?" |
+| Input                     | Description                                                          | Question if missing                                                                                                       |
+| ------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `observer_count_p99`      | How many observers per producer (e.g., channel members)              | "How many users observe the same [producer] at p99?"                                                                      |
+| `event_rate_p99`          | Events per producer per day (e.g., messages per channel per day)     | "How many [events] per [producer] per day at p99?"                                                                        |
+| `derived_metric_read_slo` | Latency target for the metric query (per-producer and batch)         | "What is the required p95 latency for computing [metric] per [producer] and across all [producers] for one observer?"     |
+| `batch_metric_read_shape` | Single-producer query vs batch across all producers for one observer | "Is the primary read single-[producer] or batch across all [producers] the observer belongs to?"                          |
+| `delete_impact_posture`   | Over-count acceptable, or exact count required                       | "When a [event] is deleted, is it acceptable for the [metric] to temporarily over-count until the observer's next visit?" |
 
 #### Blocker gate
 
@@ -1128,39 +1130,39 @@ One write to the user's own record. Single-writer (only the user updates their o
 
 **Unread computation:**
 
-| Operation | Path | Records read | Payload |
-|-----------|------|:------------:|---------|
-| Per-channel unread | Read `observer_state` → `cursors[channel_id]`. Read `channel` with bin projection `[msg_cnt]`. Subtract. | 2 | ~8 bytes from channel |
-| Batch unread (sidebar) | Read `observer_state` → full `cursors` map + `channels` list. Batch-read all channel records with bin projection `[msg_cnt]`. Subtract per channel. | 1 + N | At p95 (80 channels): ~1 KiB total |
+| Operation              | Path                                                                                                                                                | Records read | Payload                            |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | :----------: | ---------------------------------- |
+| Per-channel unread     | Read `observer_state` → `cursors[channel_id]`. Read `channel` with bin projection `[msg_cnt]`. Subtract.                                            |      2       | ~8 bytes from channel              |
+| Batch unread (sidebar) | Read `observer_state` → full `cursors` map + `channels` list. Batch-read all channel records with bin projection `[msg_cnt]`. Subtract per channel. |    1 + N     | At p95 (80 channels): ~1 KiB total |
 
 Both paths are well within the stated SLOs.
 
 **Write cost summary:**
 
-| Event | Writes | Target record | Fan-out |
-|-------|:------:|---------------|---------|
-| Message send | 1 | Channel (`msg_cnt` increment) | None |
-| Channel view | 1 | User's `observer_state` (`cursors` map put) | None |
+| Event        | Writes | Target record                               | Fan-out |
+| ------------ | :----: | ------------------------------------------- | ------- |
+| Message send |   1    | Channel (`msg_cnt` increment)               | None    |
+| Channel view |   1    | User's `observer_state` (`cursors` map put) | None    |
 
 **Approximation trade-off:** `msg_cnt` is monotonic — it never decrements when a message is deleted. If 3 messages are deleted between the observer's last snapshot and now, the unread count over-reports by 3. The over-count self-corrects on the observer's next channel view (the snapshot advances past the deletions). This is standard behavior for messaging applications and matches typical product expectations.
 
 **Block/filter interaction.** When the observer filters events at read time (e.g., hiding messages from blocked users), the counter-snapshot metric will over-count by the number of filtered events between the snapshot and now. This is the same class of approximation as the delete over-count: the monotonic counter does not decrement for filtered events. Three options:
 
-| Option | Mechanism | Trade-off |
-|--------|-----------|-----------|
-| **(a) Accept the over-count** | No additional writes or reads; counter remains monotonic | Over-count self-corrects on next view (snapshot advances past filtered events). Consistent with delete over-count behavior. |
-| **(b) Per-observer decrement on block** | When observer blocks a user, write a decrement equal to that user's messages between snapshot and now | Write amplification proportional to blocked user's message volume in each affected channel. Requires scanning bucket records at block time. |
-| **(c) Subtract at read time** | Maintain a per-channel per-blocked-user message counter; subtract from the unread delta at read time | One additional counter increment per message send (keyed by `channel:author`). Read path adds one `map_get_by_key_list` for the observer's blocked set. |
+| Option                                  | Mechanism                                                                                             | Trade-off                                                                                                                                               |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **(a) Accept the over-count**           | No additional writes or reads; counter remains monotonic                                              | Over-count self-corrects on next view (snapshot advances past filtered events). Consistent with delete over-count behavior.                             |
+| **(b) Per-observer decrement on block** | When observer blocks a user, write a decrement equal to that user's messages between snapshot and now | Write amplification proportional to blocked user's message volume in each affected channel. Requires scanning bucket records at block time.             |
+| **(c) Subtract at read time**           | Maintain a per-channel per-blocked-user message counter; subtract from the unread delta at read time  | One additional counter increment per message send (keyed by `channel:author`). Read path adds one `map_get_by_key_list` for the observer's blocked set. |
 
 **Normative default:** option (a) unless the product requires exact filtered counts. Options (b) and (c) should be evaluated only when the product explicitly rejects over-counting for blocked-user messages and the expected block-to-message ratio justifies the write or read amplification.
 
 **Rejected alternatives:**
 
-| Alternative | Mechanism | Why rejected |
-|-------------|-----------|-------------|
-| Fan-out counter | On every message send, increment a per-user unread counter for every channel member | Write amplification = `member_count` per message. At 400 members and 150 msgs/day: 60,000 counter writes/day/channel. |
-| Count-on-read scan | On each unread query, count messages between cursor timestamp and channel head across day buckets | For a user who hasn't checked a channel in 7 days with daily buckets: 7 bucket reads + element counting. Exceeds 20ms p95 SLO for inactive channels. |
-| Separate counter record | Dedicated `unread_counter` record per user per channel, incremented on send, reset on view | One additional record per user-channel pair. PI cost: `users × channels × 64 bytes`. At 8K users × 80 channels: ~40 MB PI for counter records alone. The `cursors` map on `observer_state` achieves the same result with zero additional PI. |
+| Alternative             | Mechanism                                                                                         | Why rejected                                                                                                                                                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fan-out counter         | On every message send, increment a per-user unread counter for every channel member               | Write amplification = `member_count` per message. At 400 members and 150 msgs/day: 60,000 counter writes/day/channel.                                                                                                                        |
+| Count-on-read scan      | On each unread query, count messages between cursor timestamp and channel head across day buckets | For a user who hasn't checked a channel in 7 days with daily buckets: 7 bucket reads + element counting. Exceeds 20ms p95 SLO for inactive channels.                                                                                         |
+| Separate counter record | Dedicated `unread_counter` record per user per channel, incremented on send, reset on view        | One additional record per user-channel pair. PI cost: `users × channels × 64 bytes`. At 8K users × 80 channels: ~40 MB PI for counter records alone. The `cursors` map on `observer_state` achieves the same result with zero additional PI. |
 
 #### Generalization
 
@@ -1290,11 +1292,11 @@ Defaults:
 
 Before using advanced features, lock DB and client versions and define a fallback.
 
-| Feature | Minimum version | Assumptions | Fallback if unavailable |
-|--------|------------------|-------------|-------------------------|
-| **Multi-record transactions** | Aerospike DB 8+ (strong-consistency namespace) | Atomic multi-record updates required for relationship integrity. | AP flow with idempotent writes + verify-after-write + background reconciliation. |
-| **Expression indexes** | Aerospike DB 8.1+ | Need sparse or computed-value index. | Persist derived value in a regular bin and index that bin, or redesign to key+batch. |
-| **Path expressions** | Aerospike DB 8.1.2+ (production). 8.1.1 was preview; 8.1.2 adds `mapKeysIn`, `andFilter` context types and is the documented production prerequisite. | Nested list/map filtering or indexing in-place. | Denormalize selected fields into dedicated bins/records; use CDT context + classic expressions where possible. |
+| Feature                       | Minimum version                                                                                                                                       | Assumptions                                                      | Fallback if unavailable                                                                                        |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Multi-record transactions** | Aerospike DB 8+ (strong-consistency namespace)                                                                                                        | Atomic multi-record updates required for relationship integrity. | AP flow with idempotent writes + verify-after-write + background reconciliation.                               |
+| **Expression indexes**        | Aerospike DB 8.1+                                                                                                                                     | Need sparse or computed-value index.                             | Persist derived value in a regular bin and index that bin, or redesign to key+batch.                           |
+| **Path expressions**          | Aerospike DB 8.1.2+ (production). 8.1.1 was preview; 8.1.2 adds `mapKeysIn`, `andFilter` context types and is the documented production prerequisite. | Nested list/map filtering or indexing in-place.                  | Denormalize selected fields into dedicated bins/records; use CDT context + classic expressions where possible. |
 
 Also verify client support against the client matrix for your language/runtime.
 

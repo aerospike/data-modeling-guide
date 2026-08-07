@@ -45,7 +45,7 @@ Rules for both:
 Aerospike is not a relational database, and it is not a document database.
 
 - **Records are semi-structured.** A record is a collection of **strongly typed bins**, and the typing is per bin per record — there is no set-level schema. Two records in the same set can have entirely different bins, and the server enforces nothing. Absent bins cost nothing, so sparse and heterogeneous shapes are cheap rather than wasteful. The design consequence: the data model is an **application-level contract** — namespace, set, key format, bin names, bin types — that every client must agree on, because nothing in the database will reject a client that writes a different shape.
-- **Records are the unit of I/O.** Record data is stored **contiguously**, so every read fetches the **entire record** from storage and every write **rewrites the entire record** — Aerospike does not do in-place updates. Requesting a subset of bins trims what crosses the *network*, not what is read from *device*. A record in the tens of KiB spends tens of KiB of I/O on every access, however small the change. Treat record size as an I/O budget, not just a storage number.
+- **Records are the unit of I/O.** Record data is stored **contiguously**, so every read fetches the **entire record** from storage and every write **rewrites the entire record** — Aerospike does not do in-place updates. Requesting a subset of bins trims what crosses the _network_, not what is read from _device_. A record in the tens of KiB spends tens of KiB of I/O on every access, however small the change. Treat record size as an I/O budget, not just a storage number.
 - **There are no joins** — the multi-record tool is the **batch read**, which scatters and gathers efficiently across nodes.
 - Every record costs **64 bytes of primary index metadata**, usually in RAM. Many tiny records waste memory.
 - The target record size is **1–128 KiB** — the Goldilocks band — and it is a **distribution, not a target**. Design so the **bulk of records sit in single-digit KiB**; the upper end is headroom for outliers and slowly-changing consolidated structures (1:N and N:M relationship lists), not a size to aim for. **Above roughly 50 KiB, justify the record explicitly**: say what makes the data slowly-changing and what its update rate is. Since every update rewrites the whole record, **size only hurts once multiplied by write frequency** — so ask how often a large record is rewritten, not just how big it is. Where writes are infrequent relative to reads, records near the upper end are a legitimate design, not a compromise; on a hot write path the same size is a defect. Intuition from B-tree, document, or in-memory stores does not transfer.
@@ -57,12 +57,12 @@ If your instinct is a table per entity and a row per sub-entity, or one giant em
 
 ## Where to start
 
-| Situation | Read |
-| --- | --- |
-| **New application, from scratch** | [new-app-modeling-checklist.md](new-app-modeling-checklist.md) — required first read — then the full workflow in [README.md](README.md#using-this-research-with-an-llm) |
-| Reviewing or extending an existing model | [README.md](README.md#using-this-research-with-an-llm) workflow, entering at the relevant step |
-| Deciding between modeling options (list vs. map, consolidate vs. split, index or not) | The routing table below |
-| A pure API question — signature, syntax, parameter meaning | Not this repo. [Aerospike documentation](https://aerospike.com/docs/) or a docs search tool |
+| Situation                                                                             | Read                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **New application, from scratch**                                                     | [new-app-modeling-checklist.md](new-app-modeling-checklist.md) — required first read — then the full workflow in [README.md](README.md#using-this-research-with-an-llm) |
+| Reviewing or extending an existing model                                              | [README.md](README.md#using-this-research-with-an-llm) workflow, entering at the relevant step                                                                          |
+| Deciding between modeling options (list vs. map, consolidate vs. split, index or not) | The routing table below                                                                                                                                                 |
+| A pure API question — signature, syntax, parameter meaning                            | Not this repo. [Aerospike documentation](https://aerospike.com/docs/) or a docs search tool                                                                             |
 
 The complete Step 0–8 workflow, the question-quality rules, and the full list of common modeling mistakes live in [README.md](README.md#using-this-research-with-an-llm). Follow it there rather than improvising an order.
 
@@ -80,19 +80,19 @@ The seven portable ways Aerospike models go wrong. Check these while drafting, n
 
 ## Routing table
 
-| Task | Start with | Then consult |
-| --- | --- | --- |
-| New data model from scratch | [new-app-modeling-checklist.md](new-app-modeling-checklist.md) | [concepts-and-patterns.md](concepts-and-patterns.md) |
-| 1:1, 1:N, or N:M relationship | [concepts-and-patterns.md](concepts-and-patterns.md) § Relationships at a glance | [one-to-many-relationships.md](one-to-many-relationships.md) |
-| A list that can grow very large | [follow-relationship-scale.md](follow-relationship-scale.md) | [one-to-many-relationships.md](one-to-many-relationships.md) |
-| List vs map; ordering; persist-index | [cdt-api.md](cdt-api.md) | [concepts-and-patterns.md](concepts-and-patterns.md) § value-based access |
-| Server-side filtering or computed bins | [expressions.md](expressions.md) | [concepts-and-patterns.md](concepts-and-patterns.md) applied examples |
-| Nested CDT querying or list-of-structs | [path-expressions.md](path-expressions.md) (**DB 8.1.2+**) | [cdt-api.md](cdt-api.md) nested context |
-| Matching a workload to a known shape | [workload-archetypes.md](workload-archetypes.md) | [concepts-and-patterns.md](concepts-and-patterns.md) |
-| Reviewing a drafted model for defects | [modeling-failure-modes.md](modeling-failure-modes.md) (use the Detect lines as tests) | the file each entry points to |
-| Identifier format | [id-selection-guidance.md](id-selection-guidance.md) | — |
-| Timestamp field naming | [timestamp-bin-naming-guidance.md](timestamp-bin-naming-guidance.md) | — |
-| Sizing, amplification, benchmark shape | [workload-archetypes.md](workload-archetypes.md) | [concepts-and-patterns.md](concepts-and-patterns.md) § Capacity planning |
+| Task                                   | Start with                                                                             | Then consult                                                              |
+| -------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| New data model from scratch            | [new-app-modeling-checklist.md](new-app-modeling-checklist.md)                         | [concepts-and-patterns.md](concepts-and-patterns.md)                      |
+| 1:1, 1:N, or N:M relationship          | [concepts-and-patterns.md](concepts-and-patterns.md) § Relationships at a glance       | [one-to-many-relationships.md](one-to-many-relationships.md)              |
+| A list that can grow very large        | [follow-relationship-scale.md](follow-relationship-scale.md)                           | [one-to-many-relationships.md](one-to-many-relationships.md)              |
+| List vs map; ordering; persist-index   | [cdt-api.md](cdt-api.md)                                                               | [concepts-and-patterns.md](concepts-and-patterns.md) § value-based access |
+| Server-side filtering or computed bins | [expressions.md](expressions.md)                                                       | [concepts-and-patterns.md](concepts-and-patterns.md) applied examples     |
+| Nested CDT querying or list-of-structs | [path-expressions.md](path-expressions.md) (**DB 8.1.2+**)                             | [cdt-api.md](cdt-api.md) nested context                                   |
+| Matching a workload to a known shape   | [workload-archetypes.md](workload-archetypes.md)                                       | [concepts-and-patterns.md](concepts-and-patterns.md)                      |
+| Reviewing a drafted model for defects  | [modeling-failure-modes.md](modeling-failure-modes.md) (use the Detect lines as tests) | the file each entry points to                                             |
+| Identifier format                      | [id-selection-guidance.md](id-selection-guidance.md)                                   | —                                                                         |
+| Timestamp field naming                 | [timestamp-bin-naming-guidance.md](timestamp-bin-naming-guidance.md)                   | —                                                                         |
+| Sizing, amplification, benchmark shape | [workload-archetypes.md](workload-archetypes.md)                                       | [concepts-and-patterns.md](concepts-and-patterns.md) § Capacity planning  |
 
 ## Version gates
 

@@ -7,6 +7,7 @@
 **Scope and assumptions for new app modeling:** This is a version-gated advanced feature reference. Start with [new-app-modeling-checklist.md](new-app-modeling-checklist.md), confirm DB/client compatibility, and keep a denormalized fallback pattern for production environments where path expressions are unavailable or not accepted.
 
 **Source docs:**
+
 - [Path expressions overview](https://aerospike.com/docs/develop/expressions/path/)
 - [Quickstart](https://aerospike.com/docs/develop/expressions/path/quickstart/)
 - [Advanced usage](https://aerospike.com/docs/develop/expressions/path/advanced/)
@@ -59,11 +60,11 @@ inventory (bin)
 
 When iterating over CDT elements, the server exposes the current element via loop variables so expressions can reference it:
 
-| Loop variable   | Meaning (map)        | Meaning (list)     |
-|-----------------|----------------------|--------------------|
-| **MAP_KEY**     | Key of current entry | N/A                |
-| **VALUE**       | Value of current entry (often a map or list) | Element at current index |
-| **LIST_INDEX**  | N/A                  | Index in the list  |
+| Loop variable  | Meaning (map)                                | Meaning (list)           |
+| -------------- | -------------------------------------------- | ------------------------ |
+| **MAP_KEY**    | Key of current entry                         | N/A                      |
+| **VALUE**      | Value of current entry (often a map or list) | Element at current index |
+| **LIST_INDEX** | N/A                                          | Index in the list        |
 
 Example: "product-level" filter `featured == true` uses `MapExp.getByKey(..., "featured", Exp.mapLoopVar(LoopVarPart.VALUE))` — the loop variable is the product map, and the expression reads its `featured` field.
 
@@ -103,11 +104,11 @@ CdtOperation.selectByPath("doc",
 
 **Performance comparison** (IN-list filtering on a map with N entries, M requested keys):
 
-| Approach | API | Complexity | Notes |
-|----------|-----|-----------|-------|
-| Filter-as-you-go (8.1.1+) | `CdtOperation.selectByPath` with `allChildrenWithFilter` + `ListExp.getByValue` | O(N × M) | Visits every entry; linear membership check per entry |
-| Pre-filter then traverse (8.1.1+) | `CdtExp.selectByPath` wrapping `MapExp.getByKeyList` inside `ExpOperation.read` | O(M log N) | Index-based lookup, but requires expression wrapper |
-| Native key selection (8.1.2+) | `CdtOperation.selectByPath` with `CTX.mapKeysIn` + `CTX.andFilter` | O(M log N) | Cleanest API; no expression wrapper overhead |
+| Approach                          | API                                                                             | Complexity | Notes                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------- | ---------- | ----------------------------------------------------- |
+| Filter-as-you-go (8.1.1+)         | `CdtOperation.selectByPath` with `allChildrenWithFilter` + `ListExp.getByValue` | O(N × M)   | Visits every entry; linear membership check per entry |
+| Pre-filter then traverse (8.1.1+) | `CdtExp.selectByPath` wrapping `MapExp.getByKeyList` inside `ExpOperation.read` | O(M log N) | Index-based lookup, but requires expression wrapper   |
+| Native key selection (8.1.2+)     | `CdtOperation.selectByPath` with `CTX.mapKeysIn` + `CTX.andFilter`              | O(M log N) | Cleanest API; no expression wrapper overhead          |
 
 ---
 
@@ -204,13 +205,13 @@ Querying by index name avoids rebuilding the expression on the client side and i
 
 Control what the server returns from `selectByPath`:
 
-| Flag            | Description |
-|-----------------|-------------|
-| **MATCHING_TREE** | Return subtree from bin to leaves, including only nodes that passed filters. Preserves parent-child hierarchy. Good for "return filtered document." |
-| **VALUE / VALUES** | Return a flat list of the **values** of the nodes finally selected. |
-| **MAP_KEY / MAP_KEYS** | For final nodes that are map elements, return only the **map keys** (e.g. list of SKU ids). |
-| **MAP_KEY_VALUE** | Return a list of key-value pairs for final selected map elements. |
-| **NO_FAIL**     | On type mismatch (e.g. expecting map, got string), skip that element instead of failing the whole operation. |
+| Flag                   | Description                                                                                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **MATCHING_TREE**      | Return subtree from bin to leaves, including only nodes that passed filters. Preserves parent-child hierarchy. Good for "return filtered document." |
+| **VALUE / VALUES**     | Return a flat list of the **values** of the nodes finally selected.                                                                                 |
+| **MAP_KEY / MAP_KEYS** | For final nodes that are map elements, return only the **map keys** (e.g. list of SKU ids).                                                         |
+| **MAP_KEY_VALUE**      | Return a list of key-value pairs for final selected map elements.                                                                                   |
+| **NO_FAIL**            | On type mismatch (e.g. expecting map, got string), skip that element instead of failing the whole operation.                                        |
 
 Without **NO_FAIL**, any type mismatch aborts the operation with no partial results. `NO_FAIL` is useful when matching across heterogeneous collections where not every element has the expected data type (e.g. a catalog where some product variants are maps and others are lists).
 
@@ -274,19 +275,19 @@ Each element is a map with named fields. The list is **unordered** (append-only)
 
 #### Operations
 
-| Operation | Mechanism | Baseline CDT needed? |
-|-----------|-----------|---------------------|
-| **Write** | `list_append` | Yes (all versions) |
-| **Paginate (newest N)** | `list_get_by_index_range(-N, N)` | Yes (all versions) |
-| **Trim (oldest N)** | `list_remove_by_index_range(0, N)` | Yes (all versions) |
-| **Mark-read** | `modify_by_path` with filter `read == false`, expr `MapPut("read", true)` | No — path expressions |
-| **Unread filter** | `select_by_path` with filter `read == false`, flags `SELECT_VALUE` | No — path expressions |
-| **Block-actor (mark-invisible)** | `modify_by_path` with filter `actor == blocked_user`, expr `MapPut("visible", false)` | No — path expressions |
-| **Visible-only read** | `select_by_path` with filter `visible == true`, flags `SELECT_VALUE` | No — path expressions |
-| **Type-filtered query** | `select_by_path` with filter `type == "like"`, flags `SELECT_VALUE` | No — path expressions |
-| **Remove-by-predicate** | `modify_by_path` with filter (e.g. `actor == blocked_user`), expr `ResultRemove` | No — path expressions |
-| **Exact-duplicate dedup** | `list_append` with `ADD_UNIQUE, NO_FAIL` — server K-orders maps before comparison; `KeyOrderedDict` is defensive, not required | Yes (all versions) |
-| **Identity-based dedup** | `select_by_path` check for existing `id` field value, then conditional append | No — path expressions |
+| Operation                        | Mechanism                                                                                                                      | Baseline CDT needed?  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------- |
+| **Write**                        | `list_append`                                                                                                                  | Yes (all versions)    |
+| **Paginate (newest N)**          | `list_get_by_index_range(-N, N)`                                                                                               | Yes (all versions)    |
+| **Trim (oldest N)**              | `list_remove_by_index_range(0, N)`                                                                                             | Yes (all versions)    |
+| **Mark-read**                    | `modify_by_path` with filter `read == false`, expr `MapPut("read", true)`                                                      | No — path expressions |
+| **Unread filter**                | `select_by_path` with filter `read == false`, flags `SELECT_VALUE`                                                             | No — path expressions |
+| **Block-actor (mark-invisible)** | `modify_by_path` with filter `actor == blocked_user`, expr `MapPut("visible", false)`                                          | No — path expressions |
+| **Visible-only read**            | `select_by_path` with filter `visible == true`, flags `SELECT_VALUE`                                                           | No — path expressions |
+| **Type-filtered query**          | `select_by_path` with filter `type == "like"`, flags `SELECT_VALUE`                                                            | No — path expressions |
+| **Remove-by-predicate**          | `modify_by_path` with filter (e.g. `actor == blocked_user`), expr `ResultRemove`                                               | No — path expressions |
+| **Exact-duplicate dedup**        | `list_append` with `ADD_UNIQUE, NO_FAIL` — server K-orders maps before comparison; `KeyOrderedDict` is defensive, not required | Yes (all versions)    |
+| **Identity-based dedup**         | `select_by_path` check for existing `id` field value, then conditional append                                                  | No — path expressions |
 
 #### Key design properties
 
@@ -298,12 +299,12 @@ Each element is a map with named fields. The list is **unordered** (append-only)
 
 #### When to use this pattern vs baseline Pack 4
 
-| Condition | Recommended structure |
-|-----------|----------------------|
-| Paginate-then-mark consumption model, mutations are batch-only post-display | Ordered list of tuples (baseline) |
-| Key-targeted mutations (dedup by natural key, per-event update), all DB versions | Map-keyed variant (baseline) |
-| Server-filtered-unread, type-filtered queries, block-actor side effects, or multi-field mutations; DB >= 8.1.2 | **List-of-structs (this pattern)** |
-| DB < 8.1.2 but need field-level filtering | Fall back to ordered list or map-keyed with client-side filtering, or one-event-per-record with expression filter |
+| Condition                                                                                                      | Recommended structure                                                                                             |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Paginate-then-mark consumption model, mutations are batch-only post-display                                    | Ordered list of tuples (baseline)                                                                                 |
+| Key-targeted mutations (dedup by natural key, per-event update), all DB versions                               | Map-keyed variant (baseline)                                                                                      |
+| Server-filtered-unread, type-filtered queries, block-actor side effects, or multi-field mutations; DB >= 8.1.2 | **List-of-structs (this pattern)**                                                                                |
+| DB < 8.1.2 but need field-level filtering                                                                      | Fall back to ordered list or map-keyed with client-side filtering, or one-event-per-record with expression filter |
 
 #### Relation to Pack 4 in the modeling checklist
 
@@ -345,13 +346,13 @@ Path expression workloads typically involve nested CDT documents well above 1 Ki
 
 Common error scenarios and solutions:
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `OP_NOT_APPLICABLE` | Target bin is not a map or list | Verify bin type before applying path expressions, or use a record-level filter expression to skip non-CDT records |
-| `PARAMETER_ERROR` | Malformed filter expression or invalid type reference | Check expression syntax; ensure `LoopVarPart` matches container type (`MAP_KEY` for maps, `LIST_INDEX` for lists) |
-| Type mismatch during traversal | Filter expects different type than actual data | Use `NO_FAIL` to skip invalid elements, or validate data schema |
-| Operation timeout | CDT too large or deeply nested | Increase client timeout, reduce data size, or restructure to reduce nesting depth |
-| Empty result when data exists | Filters too restrictive or path doesn't match structure | Test incrementally: start with `allChildren()` without filters, then add filters one at a time |
+| Error                          | Cause                                                   | Solution                                                                                                          |
+| ------------------------------ | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `OP_NOT_APPLICABLE`            | Target bin is not a map or list                         | Verify bin type before applying path expressions, or use a record-level filter expression to skip non-CDT records |
+| `PARAMETER_ERROR`              | Malformed filter expression or invalid type reference   | Check expression syntax; ensure `LoopVarPart` matches container type (`MAP_KEY` for maps, `LIST_INDEX` for lists) |
+| Type mismatch during traversal | Filter expects different type than actual data          | Use `NO_FAIL` to skip invalid elements, or validate data schema                                                   |
+| Operation timeout              | CDT too large or deeply nested                          | Increase client timeout, reduce data size, or restructure to reduce nesting depth                                 |
+| Empty result when data exists  | Filters too restrictive or path doesn't match structure | Test incrementally: start with `allChildren()` without filters, then add filters one at a time                    |
 
 ---
 

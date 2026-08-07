@@ -50,18 +50,18 @@ Interpretation contract:
 
 When a descriptive bin name exceeds 15 characters, use these recommended abbreviations for common fields. This table is intentionally non-exhaustive — it covers high-frequency patterns only. For project-specific abbreviations not listed here, define them in the spec's schema-normalization table.
 
-| Long form | Abbreviated | Chars | Notes |
-|---|---|---|---|
-| `publish_date_ms` | `pub_date_ms` | 11 | |
-| `created_at_ms` | `created_at_ms` | 13 | Fits; no abbreviation needed |
-| `updated_at_ms` | `updated_at_ms` | 13 | Fits; no abbreviation needed |
-| `last_modified_at_ms` | `last_mod_ms` | 11 | |
-| `follower_count` | `follower_cnt` | 12 | |
-| `notification_type` | `notif_type` | 10 | |
-| `conversation_ids` | `convo_ids` | 9 | |
-| `distinct_authors` | `dist_authors` | 12 | |
-| `repost_source_type` | `repost_typ` | 10 | |
-| `cleanup_state` | `cleanup_state` | 13 | Fits; no abbreviation needed |
+| Long form             | Abbreviated     | Chars | Notes                        |
+| --------------------- | --------------- | ----- | ---------------------------- |
+| `publish_date_ms`     | `pub_date_ms`   | 11    |                              |
+| `created_at_ms`       | `created_at_ms` | 13    | Fits; no abbreviation needed |
+| `updated_at_ms`       | `updated_at_ms` | 13    | Fits; no abbreviation needed |
+| `last_modified_at_ms` | `last_mod_ms`   | 11    |                              |
+| `follower_count`      | `follower_cnt`  | 12    |                              |
+| `notification_type`   | `notif_type`    | 10    |                              |
+| `conversation_ids`    | `convo_ids`     | 9     |                              |
+| `distinct_authors`    | `dist_authors`  | 12    |                              |
+| `repost_source_type`  | `repost_typ`    | 10    |                              |
+| `cleanup_state`       | `cleanup_state` | 13    | Fits; no abbreviation needed |
 
 Rule: if a model spec uses an abbreviation not in this table, define the long-form meaning in the spec's bin schema section. Do not alias multiple spellings for the same field across artifacts.
 
@@ -111,16 +111,16 @@ Do not lock contract status until migration behavior is documented when any rena
 
 Capture the following in the model decision record:
 
-| Field | Required content |
-|---|---|
-| Semantic field | Example: created time, publish time, notification event time |
-| Bin name | Canonical bin name |
-| Type and unit | `int64 epoch_ms` or approved alternative |
-| Mutability | immutable/mutable + trigger |
-| Producer | server/client/imported |
-| Validation rules | accepted range, precision, ambiguity checks |
-| API representation | request/response format and conversion rule |
-| Migration posture | none / dual-read / dual-write + cutoff |
+| Field              | Required content                                             |
+| ------------------ | ------------------------------------------------------------ |
+| Semantic field     | Example: created time, publish time, notification event time |
+| Bin name           | Canonical bin name                                           |
+| Type and unit      | `int64 epoch_ms` or approved alternative                     |
+| Mutability         | immutable/mutable + trigger                                  |
+| Producer           | server/client/imported                                       |
+| Validation rules   | accepted range, precision, ambiguity checks                  |
+| API representation | request/response format and conversion rule                  |
+| Migration posture  | none / dual-read / dual-write + cutoff                       |
 
 Gate:
 
@@ -136,4 +136,3 @@ Gate:
   - `updated_at_ms` (when needed)
   - `publish_date_ms`
 - Avoid mixed contracts like `created_at` (string|int) in one artifact and `created_at_ms` (int) in another.
-

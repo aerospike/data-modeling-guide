@@ -113,18 +113,18 @@ Note: for deterministic IDs derived from `(author, created_at_ms)`, also state p
 
 Fill once per major entity (`user`, `post`, `note`, `comment`, `notification`) and any high-cardinality edge IDs. The `Generation mode` field is determined by the primary fork in section 1.1 (cleartext composite vs hash); if hash, section 2 determines which hash.
 
-| Field | Required content |
-|---|---|
-| Entity/relationship | Name and where ID is used |
-| Generation mode | `readable_composite` / `uuid_ulid` / `deterministic_hash` (see section 1.1 for the primary fork) |
-| Immutable tuple availability | Yes/No + tuple fields |
-| Repetition pressure | p95/p99 placements (record key, list bins, map keys, edge records) |
-| Size impact | Estimated bytes contributed at p95/p99 |
-| Canonical format | Recipe, delimiter, timestamp/unit, encoding, length |
-| Collision policy | Detection + behavior + observability |
-| Idempotency requirement | Retry/recompute behavior needed? |
-| Cross-client lock | Shared implementation constraints |
-| Migration path | How format could evolve safely |
+| Field                        | Required content                                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ |
+| Entity/relationship          | Name and where ID is used                                                                        |
+| Generation mode              | `readable_composite` / `uuid_ulid` / `deterministic_hash` (see section 1.1 for the primary fork) |
+| Immutable tuple availability | Yes/No + tuple fields                                                                            |
+| Repetition pressure          | p95/p99 placements (record key, list bins, map keys, edge records)                               |
+| Size impact                  | Estimated bytes contributed at p95/p99                                                           |
+| Canonical format             | Recipe, delimiter, timestamp/unit, encoding, length                                              |
+| Collision policy             | Detection + behavior + observability                                                             |
+| Idempotency requirement      | Retry/recompute behavior needed?                                                                 |
+| Cross-client lock            | Shared implementation constraints                                                                |
+| Migration path               | How format could evolve safely                                                                   |
 
 Gate:
 
@@ -158,4 +158,3 @@ When generating a draft model from partial inputs:
 - If canonical ID rules are missing from inputs, emit `BLOCKED_MISSING_INPUT` for ID format and request clarification.
 - Include an "ID Contract Assumptions" section in generated output that states chosen formats and why.
 - If stakeholder answers confirm an ID format that differs from the family defaults in section 6, update the spec's ID contract to match the stakeholder-confirmed format and note the override. Do not silently fall back to the family default.
-

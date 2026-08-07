@@ -4,7 +4,7 @@ The eight ways Aerospike data models most often go wrong. These are not LLM-spec
 
 Use this file two ways:
 
-- **Priming**, before designing. Read the **Rule** and **Detect** lines; they are what you check *while* drafting.
+- **Priming**, before designing. Read the **Rule** and **Detect** lines; they are what you check _while_ drafting.
 - **Review rubric**, against a drafted model. Each **Detect** line is phrased as a test you can run over a proposed schema and get a yes/no answer.
 
 Each entry is tagged:
@@ -36,7 +36,7 @@ Values that a cluster operator can change (`max-record-size`) or that are gated 
 
 **Detect.** List every access pattern and mark how each resolves. If more than one or two resolve via secondary-index query rather than key lookup or batch read, the key design is wrong — fix the keys, not the indexes.
 
-**Why.** SI queries scatter to every node and cannot match a direct get-by-key or batch-get. Each index also carries per-entry memory cost, and a collection-typed bin produces one entry *per element*, not per record.
+**Why.** SI queries scatter to every node and cannot match a direct get-by-key or batch-get. Each index also carries per-entry memory cost, and a collection-typed bin produces one entry _per element_, not per record.
 
 **Instead.** Design keys and denormalized lists so hot reads are key lookups. Reserve SIs for inverse lookups and for queries where the key set is genuinely unknown in advance. For unique-ID resolution, use a lookup-table record rather than an index. → [concepts-and-patterns.md](concepts-and-patterns.md)
 
@@ -80,7 +80,7 @@ Values that a cluster operator can change (`max-record-size`) or that are gated 
 
 **Why.** There are no server-side joins. The alternative to duplication is a second round trip on the read path, and reads usually outnumber the writes that must maintain the duplicate.
 
-**Instead.** Store the same value in both places when it serves different patterns — a follower count on the user record *and* the follower list in a consolidated record. Write both in one `operate()` where they share a record; where they do not, record the reconciliation strategy explicitly. → [concepts-and-patterns.md](concepts-and-patterns.md)
+**Instead.** Store the same value in both places when it serves different patterns — a follower count on the user record _and_ the follower list in a consolidated record. Write both in one `operate()` where they share a record; where they do not, record the reconciliation strategy explicitly. → [concepts-and-patterns.md](concepts-and-patterns.md)
 
 **Tier.** Portable.
 
@@ -92,7 +92,7 @@ Values that a cluster operator can change (`max-record-size`) or that are gated 
 
 **Detect.** For each CDT bin, ask what caps its element count. If the answer is user behavior rather than a design decision — followers, comments, events, notifications — it is unbounded. Ask for p99 cardinality three years out; if nobody can answer, that is a `BLOCKED_MISSING_INPUT`, not a detail to settle later.
 
-**Why.** Record size is bounded by the namespace's **`max-record-size`**, which is a *configurable* limit with a default well below its permitted maximum — a model sized against the maximum will fail on a default-configured namespace with error 13 (`AS_ERR_RECORD_TOO_BIG`). Long before that hard stop, large records raise defragmentation cost and I/O latency, because each write rewrites the whole record.
+**Why.** Record size is bounded by the namespace's **`max-record-size`**, which is a _configurable_ limit with a default well below its permitted maximum — a model sized against the maximum will fail on a default-configured namespace with error 13 (`AS_ERR_RECORD_TOO_BIG`). Long before that hard stop, large records raise defragmentation cost and I/O latency, because each write rewrites the whole record.
 
 **Instead.** Consolidation with paginated reads, dedicated consolidated records, threshold-triggered overflow, or sharding. Pagination bounds the **response**; you still need a storage pattern that bounds the **record**, and a persisted collection index so the work of producing each page is bounded too. → [follow-relationship-scale.md](follow-relationship-scale.md), [concepts-and-patterns.md](concepts-and-patterns.md) § Record size limits — the only place in this guide that states the actual default and ceiling
 

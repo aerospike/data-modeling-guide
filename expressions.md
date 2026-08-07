@@ -66,12 +66,12 @@ Concrete patterns from the repo. Python client: `aerospike_helpers.expressions` 
 
 ## Where expressions are used
 
-| Feature | Introduced | Purpose |
-|--------|------------|---------|
-| **Record filter expressions** | 5.2 | Select records based on a boolean expression (WHERE clause for scans, queries, batch reads). |
-| **XDR filter expressions** | 5.3 | Filter which records replicate to specific XDR destinations (namespace + destination). |
-| **Operation expressions** | 5.6 | Extend read/write bin operations with computed values; atomic cross-bin operations; also used to **control** whether an operation (e.g. write) proceeds. |
-| **Secondary index expressions** | 8.1 | Index the **computed value** of an expression instead of a raw bin — more memory-efficient secondary indexes on large data sets. Create via asadm; queries use the expression index by matching the expression or by index name. |
+| Feature                         | Introduced | Purpose                                                                                                                                                                                                                          |
+| ------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Record filter expressions**   | 5.2        | Select records based on a boolean expression (WHERE clause for scans, queries, batch reads).                                                                                                                                     |
+| **XDR filter expressions**      | 5.3        | Filter which records replicate to specific XDR destinations (namespace + destination).                                                                                                                                           |
+| **Operation expressions**       | 5.6        | Extend read/write bin operations with computed values; atomic cross-bin operations; also used to **control** whether an operation (e.g. write) proceeds.                                                                         |
+| **Secondary index expressions** | 8.1        | Index the **computed value** of an expression instead of a raw bin — more memory-efficient secondary indexes on large data sets. Create via asadm; queries use the expression index by matching the expression or by index name. |
 
 ### Secondary index expressions (expression indexes)
 
@@ -114,6 +114,7 @@ client.operate(
 On a missing record the policy layer rejects before the op list executes; the client raises `RecordNotFound` (code 2). On an existing record the filter is evaluated normally; a filter reject raises `FilteredOut` (code 27). Handle the two as distinct `except` clauses at the call site.
 
 This is Aerospike's officially-documented pattern for the problem — see [Use Write Policies To Replace Existence Checks](https://aerospike.com/docs/develop/tutorials/intro/intro_to_transactions/operate_applies_one_or_more_operations) in the intro-to-transactions tutorial. It composes cleanly with filter expressions: the filter keeps the "record exists, additional predicate must hold" condition; the policy flag adds the "record must exist" condition that filters cannot express.
+
 - **Scan vs query (terminology):** A **scan** uses the primary index to traverse all records in the namespace or set (no secondary index). A **query** is when a **secondary index** is used to index by some bin (or expression). In both cases, a **filter expression** is the WHERE clause. **Set indexes** (5.6): automatic indexing of set membership so “all records in set S” in a large namespace can be found efficiently without a full primary-index scan.
 - **Two-phase execution:** For performance, filter expressions use a **metadata phase** then optionally a **storage phase**. See [Expression execution model](#expression-execution-model) below.
 - **Examples (from talk):** Filter by last-update time (since_update_time &gt; 1000 ms); filter by bin value (e.g. list size of `access` = 0 for “public message”) and metadata (TTL &lt; 30 minutes); batch read with filter for “public messages” or “personal messages” (list size 1 and index 0 = username). When a record is filtered out on a single-record read, the client receives an explicit “filtered out” result (e.g. error code 27), distinct from “record not found.”
@@ -137,13 +138,13 @@ This is Aerospike's officially-documented pattern for the problem — see [Use W
 
 Variables and branching for reuse and conditional logic. All introduced in 5.6.0. See [Declare and control-flow](https://aerospike.com/docs/develop/expressions/declare) for full API.
 
-| Op | Purpose |
-|----|--------|
-| **let**(def(...), def(...), ..., expr) | Define variables in scope; returns the last expression. Use to reuse an expensive sub-expression (e.g. HLL count) in the final expr. |
-| **def**(name, value) | Define a variable inside a `let`. |
-| **var**(name) | Reference a variable defined in the same `let`. |
-| **cond**(condition0, action0, condition1, action1, ..., default-action) | Test/action pairs; first condition that is true returns that action; no further tests evaluated. Default is used if all tests are false. All actions must be the same type or `unknown`. |
-| **unknown**() | Returns the trilean "unknown". In an **operation expression**, this aborts the op with error 26 (not applicable); use in `cond` default to skip a write (e.g. "add 1 to count only if count &lt; 10"). **NO_EVAL_FAIL** policy allows the transaction to continue. **Avoid in filter expressions** — unknown can force the storage phase. Same value as failed expressions (e.g. division by zero). |
+| Op                                                                      | Purpose                                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **let**(def(...), def(...), ..., expr)                                  | Define variables in scope; returns the last expression. Use to reuse an expensive sub-expression (e.g. HLL count) in the final expr.                                                                                                                                                                                                                                                                |
+| **def**(name, value)                                                    | Define a variable inside a `let`.                                                                                                                                                                                                                                                                                                                                                                   |
+| **var**(name)                                                           | Reference a variable defined in the same `let`.                                                                                                                                                                                                                                                                                                                                                     |
+| **cond**(condition0, action0, condition1, action1, ..., default-action) | Test/action pairs; first condition that is true returns that action; no further tests evaluated. Default is used if all tests are false. All actions must be the same type or `unknown`.                                                                                                                                                                                                            |
+| **unknown**()                                                           | Returns the trilean "unknown". In an **operation expression**, this aborts the op with error 26 (not applicable); use in `cond` default to skip a write (e.g. "add 1 to count only if count &lt; 10"). **NO_EVAL_FAIL** policy allows the transaction to continue. **Avoid in filter expressions** — unknown can force the storage phase. Same value as failed expressions (e.g. division by zero). |
 
 **Example (cond):** Letter grade from numeric bin: `cond(ge(grade, 90), "A", ge(grade, 80), "B", ..., "F")`. **Example (let):** Filter where HLL bin "cookies" count is &lt; 1k or &gt; 100M: `let(def("count", hllGetCount("cookies")), or(lt(var("count"), 1000), gt(var("count"), 100000000)))`.
 
@@ -153,12 +154,12 @@ Variables and branching for reuse and conditional logic. All introduced in 5.6.0
 
 Boolean comparison ops for filters and cond tests. Left and right must be the same fundamental type unless noted. See [Comparison](https://aerospike.com/docs/develop/expressions/comparison) for full API and examples.
 
-| Op | Purpose |
-|----|--------|
-| **eq**(left, right), **ne**(left, right) | Equal / not equal. For maps: `eq` of unordered vs ordered map (or same elements, different order) can be false. |
-| **lt**, **le**, **gt**, **ge**(left, right) | Less than, less-or-equal, greater than, greater-or-equal. |
-| **cmp_regex**(regex_string, options, string_expr) | True if regex matches the string (e.g. bin or nested value). Options: flags (e.g. ICASE, NEWLINE). |
-| **cmp_geo**(left, right) | True if left GeoJSON is contained in or contains right (geojson_expr). |
+| Op                                                | Purpose                                                                                                         |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **eq**(left, right), **ne**(left, right)          | Equal / not equal. For maps: `eq` of unordered vs ordered map (or same elements, different order) can be false. |
+| **lt**, **le**, **gt**, **ge**(left, right)       | Less than, less-or-equal, greater than, greater-or-equal.                                                       |
+| **cmp_regex**(regex_string, options, string_expr) | True if regex matches the string (e.g. bin or nested value). Options: flags (e.g. ICASE, NEWLINE).              |
+| **cmp_geo**(left, right)                          | True if left GeoJSON is contained in or contains right (geojson_expr).                                          |
 
 **Examples:** `eq(stringBin("fname"), val("Frank"))`; `ge(intBin("age"), val(21))`; `gt(ttl(), val(365*24*3600))` for TTL &gt; 1 year; `cmp_regex("^555.*", 0, stringBin("phone_num"))` for area code; range: `and(ge(stringBin("lname"), val("o")), lt(stringBin("lname"), val("p")))`.
 
@@ -168,11 +169,11 @@ Boolean comparison ops for filters and cond tests. Left and right must be the sa
 
 Logical operators combine boolean expressions and return a boolean. Used in filters and in `cond` tests. See [Logic](https://aerospike.com/docs/develop/expressions/logic) for full API and C/Java examples.
 
-| Op | Purpose |
-|----|--------|
-| **and**(arg0, arg1, ...) | Returns `false` if any boolean_expr is false; otherwise `true`. |
-| **or**(arg0, arg1, ...) | Returns `true` if any boolean_expr is true; otherwise `false`. |
-| **not**(arg) | Returns `true` if the boolean_expr is false; otherwise `false`. |
+| Op                             | Purpose                                                                                                           |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| **and**(arg0, arg1, ...)       | Returns `false` if any boolean_expr is false; otherwise `true`.                                                   |
+| **or**(arg0, arg1, ...)        | Returns `true` if any boolean_expr is true; otherwise `false`.                                                    |
+| **not**(arg)                   | Returns `true` if the boolean_expr is false; otherwise `false`.                                                   |
 | **exclusive**(arg0, arg1, ...) | Returns `true` if **exactly one** boolean_expr is true (mutually exclusive); otherwise `false`. Introduced 5.6.0. |
 
 **Examples:** Key exists and key &lt; 1000: `and(keyExists(), lt(key(INT), val(1000)))`. No stored key: `not(keyExists())`. Country is US or CA: `or(eq(stringBin("country"), val("US")), eq(stringBin("country"), val("CA")))`. Exactly one of hand=hook, leg=peg, pet=parrot: `exclusive(eq(stringBin("hand"), val("hook")), eq(stringBin("leg"), val("peg")), eq(stringBin("pet"), val("parrot")))`.
@@ -183,17 +184,17 @@ Logical operators combine boolean expressions and return a boolean. Used in filt
 
 Arithmetic and bitwise operators for numeric and integer expressions. Used in filters (e.g. comparisons on computed values) and in operation expressions (computed bins). All ops introduced in 5.6.0. See [Arithmetic](https://aerospike.com/docs/develop/expressions/arithmetic) for full API, argument types, and C/Java examples.
 
-| Op | Purpose |
-|----|--------|
-| **add**, **sub**, **mul**, **div**(arg0, arg1, ...) | Addition, subtraction, multiplication, division. All number_expr; div left-to-right; single-arg div = reciprocal (or 0 for int). |
-| **mod**(numerator, denominator) | Integer modulo. |
-| **abs**(value), **min**, **max**(arg0, ...) | Absolute value; minimum/maximum of numeric args. |
-| **floor**, **ceil**(value) | Round float down/up to nearest integer (returns float). |
-| **log**(num, base), **pow**(base, exponent) | Logarithm and power; float_expr. |
-| **to_int**(value), **to_float**(value) | Cast float→int / int→float. |
-| **int_and**, **int_or**, **int_xor**, **int_not** | Bitwise AND, OR, XOR, NOT on integers. |
-| **int_lshift**, **int_rshift**, **int_arshift**(value, by_numbits) | Left shift, logical right shift, arithmetic right shift. |
-| **int_count**(value), **int_lscan**, **int_rscan**(value, search) | Bit count (popcount); scan from MSB or LSB for bit 0/1, return bit index. |
+| Op                                                                 | Purpose                                                                                                                          |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| **add**, **sub**, **mul**, **div**(arg0, arg1, ...)                | Addition, subtraction, multiplication, division. All number_expr; div left-to-right; single-arg div = reciprocal (or 0 for int). |
+| **mod**(numerator, denominator)                                    | Integer modulo.                                                                                                                  |
+| **abs**(value), **min**, **max**(arg0, ...)                        | Absolute value; minimum/maximum of numeric args.                                                                                 |
+| **floor**, **ceil**(value)                                         | Round float down/up to nearest integer (returns float).                                                                          |
+| **log**(num, base), **pow**(base, exponent)                        | Logarithm and power; float_expr.                                                                                                 |
+| **to_int**(value), **to_float**(value)                             | Cast float→int / int→float.                                                                                                      |
+| **int_and**, **int_or**, **int_xor**, **int_not**                  | Bitwise AND, OR, XOR, NOT on integers.                                                                                           |
+| **int_lshift**, **int_rshift**, **int_arshift**(value, by_numbits) | Left shift, logical right shift, arithmetic right shift.                                                                         |
+| **int_count**(value), **int_lscan**, **int_rscan**(value, search)  | Bit count (popcount); scan from MSB or LSB for bit 0/1, return bit index.                                                        |
 
 **Examples:** Filter where |x1 − x2| &gt; 1: `gt(abs(sub(intBin("x1"), intBin("x2"))), val(1))`. Sum apples + bananas &gt; 10: `gt(add(intBin("apples"), intBin("bananas")), val(10))`. Even value: `eq(mod(intBin("value"), val(2)), val(0))`. Workshop (simple-op-exp.py, roster.py) uses Sub, Add, Mod, Abs in filters and operation expressions.
 
@@ -203,18 +204,18 @@ Arithmetic and bitwise operators for numeric and integer expressions. Used in fi
 
 Record-level metadata is stored in the primary index and is available **without reading record storage**, so metadata-based filters are fast (see [Expression execution model](#expression-execution-model)). See [Record metadata](https://aerospike.com/docs/develop/expressions/metadata) for full API and C/Java examples.
 
-| Op | Purpose | Units / notes |
-|----|--------|----------------|
-| **key_exists**() | True if record has a stored key. | boolean |
-| **set_name**() | Record’s set name. | string |
-| **since_update**() | Time since last update. | **milliseconds** |
-| **last_update**() | Last-update time from Unix epoch. | **nanoseconds** (ms resolution) |
-| **ttl**() | Time to live. | **seconds** (integer) |
-| **void_time**() | Expiration time. | **nanoseconds** (second resolution); −1 = never expire |
-| **record_size**() | Physical record size on storage (compressed if namespace compression on). | bytes (integer). Introduced 7.0.0. |
-| **digest_modulo**(mod) | Record digest mod N (e.g. for sampling). | integer |
-| **is_tombstone**() | True if record is a tombstone. | boolean. XDR filters and write with read/write expressions only. |
-| **device_size**(), **memory_size**() | **Deprecated** (8.1). Use **record_size** instead. | bytes; 0 for memory namespace (device_size) or non-memory (memory_size). |
+| Op                                   | Purpose                                                                   | Units / notes                                                            |
+| ------------------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **key_exists**()                     | True if record has a stored key.                                          | boolean                                                                  |
+| **set_name**()                       | Record’s set name.                                                        | string                                                                   |
+| **since_update**()                   | Time since last update.                                                   | **milliseconds**                                                         |
+| **last_update**()                    | Last-update time from Unix epoch.                                         | **nanoseconds** (ms resolution)                                          |
+| **ttl**()                            | Time to live.                                                             | **seconds** (integer)                                                    |
+| **void_time**()                      | Expiration time.                                                          | **nanoseconds** (second resolution); −1 = never expire                   |
+| **record_size**()                    | Physical record size on storage (compressed if namespace compression on). | bytes (integer). Introduced 7.0.0.                                       |
+| **digest_modulo**(mod)               | Record digest mod N (e.g. for sampling).                                  | integer                                                                  |
+| **is_tombstone**()                   | True if record is a tombstone.                                            | boolean. XDR filters and write with read/write expressions only.         |
+| **device_size**(), **memory_size**() | **Deprecated** (8.1). Use **record_size** instead.                        | bytes; 0 for memory namespace (device_size) or non-memory (memory_size). |
 
 **Examples:** Filter records updated &gt; 1 s ago: `gt(since_update(), val(1000))`. TTL &lt; 30 min: `lt(ttl(), val(60*30))`. Set is groupA or groupB: `or(eq(set_name(), val("groupA")), eq(set_name(), val("groupB")))`. Records &gt; 1 MiB: `gt(record_size(), val(1024*1024))`. Workshop uses SinceUpdateTime (ms) and TTL (s) in filters and as operation reads.
 
@@ -224,13 +225,13 @@ Record-level metadata is stored in the primary index and is available **without 
 
 Expressions that read **bin and key values** from the record. They require the **storage phase** when used in filters (see [Expression execution model](#expression-execution-model)). See [Record storage](https://aerospike.com/docs/develop/expressions/storage) for full API and C/Java examples.
 
-| Op | Purpose |
-|----|--------|
-| **bin_int**(name), **bin_float**(name), **bin_str**(name), **bin_blob**(name) | Access bin as integer, float, string, or blob. Return **unknown** if bin missing or type mismatch. |
-| **bin_list**(name), **bin_map**(name), **bin_geo**(name), **bin_hll**(name) | Access bin as list, map, GeoJSON, or HyperLogLog. Return **unknown** if bin missing or type mismatch. |
-| **bin_exists**(name) | True if a bin with that name exists; otherwise **unknown**. |
-| **bin_type**(name) | ParticleType of the bin (integer: NULL 0, INTEGER 1, DOUBLE 2, STRING 3, BLOB 4, JBLOB 7, BOOL 17, HLL 18, MAP 19, LIST 20, GEOJSON 23). Unknown if bin missing. |
-| **key_int**(), **key_str**(), **key_blob**() | Access stored key as integer, string, or blob. Return **unknown** if key missing or type mismatch. |
+| Op                                                                            | Purpose                                                                                                                                                          |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **bin_int**(name), **bin_float**(name), **bin_str**(name), **bin_blob**(name) | Access bin as integer, float, string, or blob. Return **unknown** if bin missing or type mismatch.                                                               |
+| **bin_list**(name), **bin_map**(name), **bin_geo**(name), **bin_hll**(name)   | Access bin as list, map, GeoJSON, or HyperLogLog. Return **unknown** if bin missing or type mismatch.                                                            |
+| **bin_exists**(name)                                                          | True if a bin with that name exists; otherwise **unknown**.                                                                                                      |
+| **bin_type**(name)                                                            | ParticleType of the bin (integer: NULL 0, INTEGER 1, DOUBLE 2, STRING 3, BLOB 4, JBLOB 7, BOOL 17, HLL 18, MAP 19, LIST 20, GEOJSON 23). Unknown if bin missing. |
+| **key_int**(), **key_str**(), **key_blob**()                                  | Access stored key as integer, string, or blob. Return **unknown** if key missing or type mismatch.                                                               |
 
 **Note:** Client APIs often expose these as e.g. `Exp.intBin("name")`, `Exp.stringBin("name")`. Use **key_exists**() (metadata) to test for a stored key without reading storage; use **key_int**() etc. when you need the key value (triggers storage read in filter context).
 
@@ -240,19 +241,19 @@ Expressions that read **bin and key values** from the record. They require the *
 
 Expression API for **reading** and **modifying** list-type bins. Used in filters (e.g. list size, get-by-index/value) and in operation expressions (e.g. append, remove, write result to bin). All take a list bin (or nested context) and optional policy; modify ops return the **modified list bin** (unlike CDT list ops which may return a count or other type). See [List bin operations](https://aerospike.com/docs/develop/expressions/list-bin) for full API and [cdt-api.md](cdt-api.md) for CDT context (ordering, policies).
 
-| Category | Ops | Notes |
-|----------|-----|--------|
-| **Modify** | list_append, list_append_items, list_clear, list_increment, list_insert, list_insert_items | **list_append** does *not* create the bin if missing (unlike the CDT list append op). |
-| | list_remove_by_index, list_remove_by_index_range, list_remove_by_index_range_to_end | Remove by position. |
-| | list_remove_by_rank, list_remove_by_rank_range, list_remove_by_rank_range_to_end | Remove by sorted rank. |
-| | list_remove_by_rel_rank_range, list_remove_by_rel_rank_range_to_end | Remove by rank relative to a value. |
-| | list_remove_by_value, list_remove_by_value_list, list_remove_by_value_range | Remove by value(s) or value range. |
-| | list_set, list_sort | Set element at index; sort list. |
-| **Read** | list_size | Returns integer (element count). |
-| | list_get_by_index, list_get_by_index_range, list_get_by_index_range_to_end | Get by position; result_type (e.g. LIST_RETURN_VALUE) required. |
-| | list_get_by_rank, list_get_by_rank_range, list_get_by_rank_range_to_end | Get by sorted rank. |
-| | list_get_by_rel_rank_range, list_get_by_rel_rank_range_to_end | Get by rank relative to value. |
-| | list_get_by_value, list_get_by_value_list, list_get_by_value_range | Get by value(s) or range; result_type required. |
+| Category   | Ops                                                                                        | Notes                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| **Modify** | list_append, list_append_items, list_clear, list_increment, list_insert, list_insert_items | **list_append** does _not_ create the bin if missing (unlike the CDT list append op). |
+|            | list_remove_by_index, list_remove_by_index_range, list_remove_by_index_range_to_end        | Remove by position.                                                                   |
+|            | list_remove_by_rank, list_remove_by_rank_range, list_remove_by_rank_range_to_end           | Remove by sorted rank.                                                                |
+|            | list_remove_by_rel_rank_range, list_remove_by_rel_rank_range_to_end                        | Remove by rank relative to a value.                                                   |
+|            | list_remove_by_value, list_remove_by_value_list, list_remove_by_value_range                | Remove by value(s) or value range.                                                    |
+|            | list_set, list_sort                                                                        | Set element at index; sort list.                                                      |
+| **Read**   | list_size                                                                                  | Returns integer (element count).                                                      |
+|            | list_get_by_index, list_get_by_index_range, list_get_by_index_range_to_end                 | Get by position; result_type (e.g. LIST_RETURN_VALUE) required.                       |
+|            | list_get_by_rank, list_get_by_rank_range, list_get_by_rank_range_to_end                    | Get by sorted rank.                                                                   |
+|            | list_get_by_rel_rank_range, list_get_by_rel_rank_range_to_end                              | Get by rank relative to value.                                                        |
+|            | list_get_by_value, list_get_by_value_list, list_get_by_value_range                         | Get by value(s) or range; result_type required.                                       |
 
 **Note:** Read ops (except list_size) take a **result_type** (e.g. LIST_RETURN_VALUE, LIST_RETURN_INDEX); when returning values, a type is required because list elements can be any expression type. Workshop examples (messages.py, roster.py, exp-composition.py) use ListSize, ListGetByIndex, ListGetByValue, ListGetByValueRange, ListSort, ListAppendItems, and related ops in filters and operation expressions.
 
@@ -262,43 +263,43 @@ Expression API for **reading** and **modifying** list-type bins. Used in filters
 
 Expression API for **reading** and **modifying** map-type bins. Used in filters (e.g. map size, get-by-key/value) and in operation expressions (e.g. put, remove, write result to bin). All take a map bin (or nested context) and optional policy; modify ops return the **modified map bin** (unlike CDT Map ops which may return a count or other type). See [Map bin operations](https://aerospike.com/docs/develop/expressions/map-bin) for full API and [cdt-api.md](cdt-api.md) for CDT context (ordering, policies).
 
-- **map_put** and **map_put_items** do *not* create a new bin if the specified bin does not exist (unlike the CDT Map put/put_items ops, which do create the bin).
+- **map_put** and **map_put_items** do _not_ create a new bin if the specified bin does not exist (unlike the CDT Map put/put_items ops, which do create the bin).
 - Map **read** expressions (other than **map_size**) return a result based on their **result_type** (integer_value). Single-result ops (e.g. map_get_by_index, map_get_by_key) require a type when result_type is MAP_RETURN_KEY or MAP_RETURN_VALUE, because map keys/values can be any expression type. **map_size** returns an integer (element count).
 
-| Category | Ops | Notes |
-|----------|-----|--------|
-| **Modify** | map_clear, map_put, map_put_items, map_increment | Put/put_items do not create bin if missing. |
-| | map_remove_by_index, map_remove_by_index_range, map_remove_by_index_range_to_end | Remove by position. |
-| | map_remove_by_key, map_remove_by_key_list, map_remove_by_key_range | Remove by key(s) or key range (start ≤ k &lt; end). |
-| | map_remove_by_rank, map_remove_by_rank_range, map_remove_by_rank_range_to_end | Remove by sorted rank. |
-| | map_remove_by_rel_index_range, map_remove_by_rel_index_range_to_end | Remove by index relative to key. |
-| | map_remove_by_rel_rank_range, map_remove_by_rel_rank_range_to_end | Remove by rank relative to value. |
-| | map_remove_by_value, map_remove_by_value_list, map_remove_by_value_range | Remove by value(s) or value range. |
-| **Read** | map_size | Returns integer (entry count). |
-| | map_get_by_index, map_get_by_index_range, map_get_by_index_range_to_end | Get by position; result_type required. |
-| | map_get_by_key, map_get_by_key_list, map_get_by_key_range | Get by key(s) or key range. |
-| | map_get_by_rank, map_get_by_rank_range, map_get_by_rank_range_to_end | Get by sorted rank. |
-| | map_get_by_rel_index_range, map_get_by_rel_index_range_to_end | Get by index relative to key. |
-| | map_get_by_rel_rank_range, map_get_by_rel_rank_range_to_end | Get by rank relative to value. |
-| | map_get_by_value, map_get_by_value_list, map_get_by_value_range | Get by value(s) or range; result_type required. |
+| Category   | Ops                                                                              | Notes                                               |
+| ---------- | -------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **Modify** | map_clear, map_put, map_put_items, map_increment                                 | Put/put_items do not create bin if missing.         |
+|            | map_remove_by_index, map_remove_by_index_range, map_remove_by_index_range_to_end | Remove by position.                                 |
+|            | map_remove_by_key, map_remove_by_key_list, map_remove_by_key_range               | Remove by key(s) or key range (start ≤ k &lt; end). |
+|            | map_remove_by_rank, map_remove_by_rank_range, map_remove_by_rank_range_to_end    | Remove by sorted rank.                              |
+|            | map_remove_by_rel_index_range, map_remove_by_rel_index_range_to_end              | Remove by index relative to key.                    |
+|            | map_remove_by_rel_rank_range, map_remove_by_rel_rank_range_to_end                | Remove by rank relative to value.                   |
+|            | map_remove_by_value, map_remove_by_value_list, map_remove_by_value_range         | Remove by value(s) or value range.                  |
+| **Read**   | map_size                                                                         | Returns integer (entry count).                      |
+|            | map_get_by_index, map_get_by_index_range, map_get_by_index_range_to_end          | Get by position; result_type required.              |
+|            | map_get_by_key, map_get_by_key_list, map_get_by_key_range                        | Get by key(s) or key range.                         |
+|            | map_get_by_rank, map_get_by_rank_range, map_get_by_rank_range_to_end             | Get by sorted rank.                                 |
+|            | map_get_by_rel_index_range, map_get_by_rel_index_range_to_end                    | Get by index relative to key.                       |
+|            | map_get_by_rel_rank_range, map_get_by_rel_rank_range_to_end                      | Get by rank relative to value.                      |
+|            | map_get_by_value, map_get_by_value_list, map_get_by_value_range                  | Get by value(s) or range; result_type required.     |
 
 ---
 
 ## Blob/bitwise bin operations (5.2.0+)
 
-Expression API for **reading** and **modifying** blob-type bins at bit or byte level. Used in filters and operation expressions. The [Blob bin operations](https://aerospike.com/docs/develop/expressions/blob-bin) page documents **bit_*** ops that operate on a region of the blob (bit_offset/bit_size or bytes_offset/byte_size). Modify ops return the **modified blob bin**; read ops return blob or integer as noted. See the official [Blob data type](https://aerospike.com/docs/develop/data-types/blob) for underlying add/set/get/count/scan semantics.
+Expression API for **reading** and **modifying** blob-type bins at bit or byte level. Used in filters and operation expressions. The [Blob bin operations](https://aerospike.com/docs/develop/expressions/blob-bin) page documents **bit\_\*** ops that operate on a region of the blob (bit_offset/bit_size or bytes_offset/byte_size). Modify ops return the **modified blob bin**; read ops return blob or integer as noted. See the official [Blob data type](https://aerospike.com/docs/develop/data-types/blob) for underlying add/set/get/count/scan semantics.
 
-| Category | Ops | Notes |
-|----------|-----|--------|
-| **Modify** | bit_add, bit_subtract | Add/subtract integer in a bit region; action_flags. |
-| | bit_and, bit_or, bit_xor, bit_not | Bitwise AND, OR, XOR, NOT on a bit region. |
-| | bit_set, bit_set_int | Set bit region from blob or integer. |
-| | bit_lshift, bit_rshift | Left/right shift a bit region. |
-| | bit_insert, bit_remove | Insert/remove bytes at byte offset. |
-| | bit_resize | Resize blob (bytes_size, flags). |
-| **Read** | bit_count | Popcount in region → integer_bin. |
-| | bit_get, bit_get_int | Get bit region as blob or integer (is_signed for get_int). |
-| | bit_lscan, bit_rscan | Scan for first 0/1 from left or right → integer_bin (bit index). |
+| Category   | Ops                               | Notes                                                            |
+| ---------- | --------------------------------- | ---------------------------------------------------------------- |
+| **Modify** | bit_add, bit_subtract             | Add/subtract integer in a bit region; action_flags.              |
+|            | bit_and, bit_or, bit_xor, bit_not | Bitwise AND, OR, XOR, NOT on a bit region.                       |
+|            | bit_set, bit_set_int              | Set bit region from blob or integer.                             |
+|            | bit_lshift, bit_rshift            | Left/right shift a bit region.                                   |
+|            | bit_insert, bit_remove            | Insert/remove bytes at byte offset.                              |
+|            | bit_resize                        | Resize blob (bytes_size, flags).                                 |
+| **Read**   | bit_count                         | Popcount in region → integer_bin.                                |
+|            | bit_get, bit_get_int              | Get bit region as blob or integer (is_signed for get_int).       |
+|            | bit_lscan, bit_rscan              | Scan for first 0/1 from left or right → integer_bin (bit index). |
 
 ---
 
@@ -306,18 +307,18 @@ Expression API for **reading** and **modifying** blob-type bins at bit or byte l
 
 Expression API for **reading** and **modifying** HyperLogLog (HLL) bins used for approximate distinct counting and similarity. Used in filters (e.g. **hll_get_count** in a cond or comparison) and in operation expressions. See [HyperLogLog bin operations](https://aerospike.com/docs/develop/expressions/hll-bin) for full API and the [HyperLogLog data type](https://aerospike.com/docs/develop/data-types/hll) for semantics.
 
-| Category | Ops | Notes |
-|----------|-----|--------|
-| **Modify** | hll_add | Add values (list_expr) to HLL; index_bit_count; returns hll_bin. |
-| | hll_add_mh | Add with MinHash; index_bit_count, minhash_bit_count. |
-| | hll_update | Update HLL with values (list_expr). |
-| **Read** | hll_get_count | Estimated distinct count → integer_bin. |
-| | hll_get_union_count | Union count of HLLs (hll_list, bin) → integer_bin. |
-| | hll_get_intersect_count | Intersect count (hll_list, bin) → integer_bin. |
-| | hll_get_similarity | Similarity (hll_list, bin) → float_bin. |
-| | hll_get_union | Union of HLLs → hll_bin. |
-| | hll_describe | Describe HLL (index/minhash bits etc.) → list_bin. |
-| | hll_may_contain | 1 if bin may contain all values, else 0 → integer_bin. |
+| Category   | Ops                     | Notes                                                            |
+| ---------- | ----------------------- | ---------------------------------------------------------------- |
+| **Modify** | hll_add                 | Add values (list_expr) to HLL; index_bit_count; returns hll_bin. |
+|            | hll_add_mh              | Add with MinHash; index_bit_count, minhash_bit_count.            |
+|            | hll_update              | Update HLL with values (list_expr).                              |
+| **Read**   | hll_get_count           | Estimated distinct count → integer_bin.                          |
+|            | hll_get_union_count     | Union count of HLLs (hll_list, bin) → integer_bin.               |
+|            | hll_get_intersect_count | Intersect count (hll_list, bin) → integer_bin.                   |
+|            | hll_get_similarity      | Similarity (hll_list, bin) → float_bin.                          |
+|            | hll_get_union           | Union of HLLs → hll_bin.                                         |
+|            | hll_describe            | Describe HLL (index/minhash bits etc.) → list_bin.               |
+|            | hll_may_contain         | 1 if bin may contain all values, else 0 → integer_bin.           |
 
 **Example (filter):** Workshop “let” example uses **hll_get_count** in a filter: e.g. distinct count &lt; 1k or &gt; 100M. Use **hll_may_contain** in filters to test set containment without full scan.
 
@@ -349,11 +350,11 @@ Path expressions can be used inside the expression API (`CdtExp.selectByPath`, `
 
 Aerospike Database 8.1.2 adds three standalone expression operators (AER-6889) that simplify common patterns previously requiring multi-op composition. Each is a top-level `Exp` function, not a nested CDT op, and does not take context or return-type arguments.
 
-| Operator | Signature | Returns | Replaces |
-|----------|-----------|---------|----------|
-| `Exp.inList(value, list)` | value-expr, list-expr | boolean | `ListExp.getByValue(COUNT, value, list) > 0` |
-| `Exp.mapKeys(bin)` | map-bin-expr | list of keys | `MapExp.getByKeyRange(KEY, nil, nil, bin)` or equivalent |
-| `Exp.mapValues(bin)` | map-bin-expr | list of values | `MapExp.getByValueRange(VALUE, nil, nil, bin)` or equivalent |
+| Operator                  | Signature             | Returns        | Replaces                                                     |
+| ------------------------- | --------------------- | -------------- | ------------------------------------------------------------ |
+| `Exp.inList(value, list)` | value-expr, list-expr | boolean        | `ListExp.getByValue(COUNT, value, list) > 0`                 |
+| `Exp.mapKeys(bin)`        | map-bin-expr          | list of keys   | `MapExp.getByKeyRange(KEY, nil, nil, bin)` or equivalent     |
+| `Exp.mapValues(bin)`      | map-bin-expr          | list of values | `MapExp.getByValueRange(VALUE, nil, nil, bin)` or equivalent |
 
 **When to reach for each:**
 
