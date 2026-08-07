@@ -34,6 +34,34 @@ Trunk can also be run as a CLI. Once installed, you can run `trunk git-hooks syn
 
 `streetsidesoftware.code-spell-checker`: This isn't enabled via trunk and you should run it in your editor of choice. Trunk marks all misspelled words as errors, when they should properly be notes (blue squiggles, not red squiggles).
 
+### Branch protection
+
+The default branch is protected by two rulesets: an organization-wide baseline
+(`protect_default_branch_0001`) and a repository ruleset (`protect_main`).
+Together they mean:
+
+- **Changes reach `main` through a pull request.** Direct pushes are blocked
+  for anyone without an organization- or repository-admin bypass.
+- **One approving review from a [code owner](.github/CODEOWNERS) is required.**
+  Any one of the listed owners satisfies it — not all of them. GitHub does not
+  let a pull request author approve their own, so the reviewer is someone else
+  on that list.
+- **Squash merges only.** Merge commits and rebase merges are disabled, and the
+  head branch is deleted automatically after merge.
+- **Two status checks must pass:** `Trunk Check` and
+  `validate-jira-ticket / hygiene-check`. The branch must also be up to date
+  with `main` before merging.
+- **Review threads must be resolved**, and a new push after approval requires
+  re-approval.
+
+**Commit signatures are deliberately not required.** The repository template
+enforces them, and that rule was removed here. Commit signing attests
+authorship of commit objects — valuable where commits feed a build that ships
+to customers and provenance must be auditable. This repository is internal
+documentation with named code owners and pull-request review, so requiring
+every contributor to configure a GPG or SSH signing key costs more than it
+returns. Please do not re-add the rule without revisiting that trade-off.
+
 ### Pull Requests
 
 With exceptions (see below) PR titles must follow conventional commit format:
