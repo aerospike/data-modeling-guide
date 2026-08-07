@@ -34,17 +34,32 @@ Aerospike's agent guidance is split across two internal repos, and the boundary 
 | Output | Code | Schema guide and schema summary |
 | Shape | Compact skills, single-turn, code-shaped | Long-form workflow, multi-session, with stakeholder gates |
 
-The `aerospike-development` skill already covers data modeling at implementation depth — it ships `model-*` and `cdt-*` reference files for keys, sets, bins, denormalization, record size, and hot keys. That is deliberate and should stay. This guide is not a replacement for it and does not compete with it; it covers the design pass that happens *before* any of that is relevant.
+The `aerospike-development` skill covers data modeling at implementation depth — it ships `model-*` and `cdt-*` reference files for keys, sets, bins, denormalization, record size, and hot keys. That is deliberate and stays. This guide is not a replacement for it and does not compete with it; it covers the design pass that happens *before* any of that is relevant.
 
-**Planned integration — a gateway skill.** The agreed direction is a new skill in `agent-skills`, scoped tightly to greenfield and redesign work, following that repo's existing `SKILL.md` + `references/` pattern. It is a *gateway*, not a redirect: a bare "go read this repo" would lose the trigger contest against `aerospike-development` and would hand back a URL with no routing and no guarantee of repo access. Instead it should carry the durable material inline — the mental shift, the [failure modes](modeling-failure-modes.md), the hard rules — then escalate to this guide for the full workflow, route to specific files by task, and state plainly when it cannot reach the guide rather than improvising a model.
+### The gateway skill
 
-**Adjustments this implies in `agent-skills`:**
+`agent-skills` carries a skill named **`aerospike-data-modeling`**, scoped to greenfield and redesign work, which routes design-time tasks here. It is a *gateway*, not a redirect — a bare "go read this repo" would lose the trigger contest against `aerospike-development` and hand back a pointer with no routing. Instead it carries the durable material inline (the mental shift, the seven portable [failure modes](modeling-failure-modes.md), the clarify-first rule, the schema guide / schema summary contract), then escalates here for the full workflow with a task-to-file routing table. Its counterpart `aerospike-development` carries a handoff clause in its description and scope so the two do not compete.
 
-1. Add a handoff line to `aerospike-development` pointing greenfield model design at the new skill, so the two do not compete for the same trigger.
-2. Reconcile the existing `model-*` references against this guide before adding a third surface — `model-record-size-hardware-efficiency.md` in particular states record-size guidance that must agree with [concepts-and-patterns.md](concepts-and-patterns.md), or an agent can load two contradicting internal sources in one session.
-3. Confirm agents can actually reach this repo under a typical developer's `gh` auth. If they cannot, the skill must carry more of the workflow inline.
+**This makes filenames in this repo a contract.** The skill's routing table names these files directly:
 
-**The rule that keeps the two in sync — split by rate of change, not by topic.** The skill may duplicate the *slow* layer (64-byte index cost, the 1–128 KiB band, no server-side joins, the failure modes); those barely move, and duplicating them keeps the skill useful even when this repo is unreachable. The skill must **never** duplicate the *fast* layer — version gates, complexity tables, API surfaces, `max-record-size` values — which changed twice in the last two months. Entries in [modeling-failure-modes.md](modeling-failure-modes.md) are tagged **Portable** or **Guide-only** precisely to mark what is safe to lift.
+```
+new-app-modeling-checklist.md   concepts-and-patterns.md      one-to-many-relationships.md
+follow-relationship-scale.md    cdt-api.md                    expressions.md
+path-expressions.md             workload-archetypes.md        modeling-failure-modes.md
+id-selection-guidance.md        timestamp-bin-naming-guidance.md
+```
+
+Renaming or removing any of them silently breaks the skill's escalation path — nothing in either repo will fail loudly. If a rename is necessary, update the skill's `SKILL.md` routing table and `references/ex-guide-escalation.md` in the same change.
+
+**This repo cannot be linked by URL from the skill.** `agent-skills` runs `skill-validator` in CI, which live-checks every URL. Both repos are internal, so a markdown link to `github.com/aerospike/data-modeling-guide` returns a non-200 and fails the build permanently. The skill therefore refers to this repo by name plus a `gh repo clone` command, and points its `doc:` frontmatter at the public [Aerospike data modeling docs](https://aerospike.com/docs/develop/data-modeling/). Keep it that way.
+
+### The rule that keeps the two in sync — split by rate of change, not by topic
+
+The skill may duplicate the **slow** layer: the 64-byte index cost, no server-side joins, access-patterns-drive-the-model, and the failure modes. Those barely move, and duplicating them keeps the skill useful even when this repo is unreachable. Entries in [modeling-failure-modes.md](modeling-failure-modes.md) are tagged **Portable** or **Guide-only** precisely to mark what is safe to lift — the skill carries the seven Portable ones and omits the Guide-only entry, which is meaningless outside this workflow.
+
+The skill must **never** duplicate the **fast** layer — version gates, complexity tables, API surfaces, `max-record-size` values. These changed twice in the last two months, and a stale copy is worse than a pointer because nothing signals it is wrong. The skill states these by name and directs the reader here to read the current value.
+
+**Open item.** `aerospike-development/references/model-record-size-hardware-efficiency.md` gives the record-size sweet spot as roughly **1–10 KiB**; [concepts-and-patterns.md](concepts-and-patterns.md) § Record size limits gives **1–128 KiB**. The two are not reconciled. They may be answering different questions — an architectural band versus a high-throughput target, which that file frames in terms of throughput — but as written an agent that loads both gets conflicting guidance for a record in the tens of KiB. The new skill sidesteps this by pointing here for record sizing rather than restating a number; the underlying disagreement still needs a decision.
 
 ## Files in this guide
 
