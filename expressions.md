@@ -217,7 +217,7 @@ Record-level metadata is stored in the primary index and is available **without 
 | **is_tombstone**()                   | True if record is a tombstone.                                            | boolean. XDR filters and write with read/write expressions only.         |
 | **device_size**(), **memory_size**() | **Deprecated** (8.1). Use **record_size** instead.                        | bytes; 0 for memory namespace (device_size) or non-memory (memory_size). |
 
-**Examples:** Filter records updated &gt; 1 s ago: `gt(since_update(), val(1000))`. TTL &lt; 30 min: `lt(ttl(), val(60*30))`. Set is groupA or groupB: `or(eq(set_name(), val("groupA")), eq(set_name(), val("groupB")))`. Records &gt; 1 MiB: `gt(record_size(), val(1024*1024))`. Workshop uses SinceUpdateTime (ms) and TTL (s) in filters and as operation reads.
+**Examples:** Filter records updated &gt; 1 s ago: `gt(since_update(), val(1000))`. TTL &lt; 30 min: `lt(ttl(), val(60*30))`. Set is groupA or groupB: `or(eq(set_name(), val("groupA")), eq(set_name(), val("groupB")))`. Physical record size &gt; 1 MiB: `gt(record_size(), val(1024*1024))`. Workshop uses SinceUpdateTime (ms) and TTL (s) in filters and as operation reads.
 
 ---
 
