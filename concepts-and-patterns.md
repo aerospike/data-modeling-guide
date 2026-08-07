@@ -82,10 +82,13 @@ Three different bounds get conflated. Keep them separate — most sizing mistake
 | Tier | Value | Nature |
 |---|---|---|
 | **Design target** (Goldilocks) | **1–128 KiB** | Guidance. Where records should live. Exceeding it is a decision to justify, not an error. |
+| *— where within the band* | throughput-dependent | Lower-throughput workloads sit comfortably toward the upper end. High-throughput workloads should bias toward single-digit KiB so disk bandwidth and replication keep up. The band does not change; the target inside it does. |
 | **Configured limit** | **`max-record-size`** — namespace parameter, **default 1 MiB**, dynamic | The real constraint. Must be **confirmed per deployment**, never assumed. |
 | **Architectural ceiling** | **8 MiB** | Hardcoded write-block size. `max-record-size` cannot be set above it. |
 
-**This is the only place in this guide that states these numbers.** Everywhere else refers to "the configured `max-record-size`" so the values cannot drift out of sync.
+**This is the only place in this guide that states these numbers.** Everywhere else refers to "the configured `max-record-size`" so the values cannot drift out of sync. The 1–128 KiB design target is also mirrored in the `aerospike-data-modeling` and `aerospike-development` skills in `agent-skills`; if measurement ever revises it, update all three.
+
+The design target is derived from index-to-data ratio, I/O size, and defragmentation cost — it is **not a measured hard boundary**. If benchmarking on specific hardware and workload yields different figures, replace it here with the verified numbers and record the test conditions.
 
 - **A write that breaches `max-record-size` fails with error 13** (`AS_ERR_RECORD_TOO_BIG`), counted by the `fail_record_too_big` metric. It is a hard rejection, not degraded performance.
 - **Size against the configured value, not the ceiling.** A model designed for 8 MiB is rejected at 1 MiB on a default namespace — an 8× error in the safety margin.

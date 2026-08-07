@@ -59,7 +59,11 @@ The skill may duplicate the **slow** layer: the 64-byte index cost, no server-si
 
 The skill must **never** duplicate the **fast** layer — version gates, complexity tables, API surfaces, `max-record-size` values. These changed twice in the last two months, and a stale copy is worse than a pointer because nothing signals it is wrong. The skill states these by name and directs the reader here to read the current value.
 
-**Open item.** `aerospike-development/references/model-record-size-hardware-efficiency.md` gives the record-size sweet spot as roughly **1–10 KiB**; [concepts-and-patterns.md](concepts-and-patterns.md) § Record size limits gives **1–128 KiB**. The two are not reconciled. They may be answering different questions — an architectural band versus a high-throughput target, which that file frames in terms of throughput — but as written an agent that loads both gets conflicting guidance for a record in the tens of KiB. The new skill sidesteps this by pointing here for record sizing rather than restating a number; the underlying disagreement still needs a decision.
+**Resolved — the record-size band.** `aerospike-development/references/model-record-size-hardware-efficiency.md` previously gave the sweet spot as roughly 1–10 KiB, against this guide's **1–128 KiB**. Both repos are now aligned on **1–128 KiB**, and that file states explicitly that "a few KiB" means the whole band rather than single-digit KiB — the misreading that produced the divergence.
+
+The useful part of the old wording was kept: **throughput determines where you sit within the band**, not what the band is. Lower-throughput workloads sit comfortably toward the upper end; high-throughput workloads should bias toward single-digit KiB so disk bandwidth and replication keep up. See [concepts-and-patterns.md](concepts-and-patterns.md) § Record size limits.
+
+The band is a design target derived from index-to-data ratio, I/O size, and defragmentation cost — **not a measured hard boundary**. If benchmarking on specific hardware and workload produces different figures, replace it in both places with the verified numbers and record the test conditions.
 
 ## Files in this guide
 
