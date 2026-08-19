@@ -128,6 +128,34 @@ For the current default and permitted range, confirm against the [`max-record-si
 
 **Implications for data modeling:** Key design determines partition (and thus which node and how data is distributed). Aerospike does **not** support collocation of related records via key design; keys are uniformly distributed for load balancing. Key design should still support **access patterns** (e.g. compose the key so related objects can be looked up or batched efficiently). No schema means our “standard” data model is an application-level contract: we agree on namespace, set(s), key format, and bin names/types so that all clients read/write the same logical model; the server does not enforce it. Record granularity and target size (**few KiB** = **1–128 KiB** where practical, and always within the namespace's configured `max-record-size` — see Record size limits above) should be part of that contract; batch reads make many medium-sized records a good fit.
 
+### Storage compression (Enterprise)
+
+Namespaces can compress records on their way to storage — per record, losslessly — via `compression` (`none` | `lz4` | `snappy` | `zstd`, default `none`) and `compression-level` (zstd only, 1–9, default 9) in the `storage-engine` sub-context, with `compression-acceleration` to tune lz4. All are dynamic, and Enterprise-only. Compression applies to any storage engine — device, PMem, or memory; **in-memory namespaces are compressible from Database 7.0**. Changing settings affects only records written afterward — existing records keep their old format until rewritten (a scan-and-touch pass recompresses them) — and a record that would grow under compression is stored uncompressed automatically.
+
+Compression splits record size into two byte-spaces, and this guide's convention is:
+
+- **Logical record size** — the uncompressed size. An unqualified "record size" anywhere in this guide means logical size: the 1–128 KiB band, the ~50 KiB justification threshold, every sizing worksheet and decision band, **and the `max-record-size` check itself** are all logical quantities. The server checks the uncompressed size even when the compressed bytes would fit, so **compression never creates sizing headroom** — a logically oversized write is rejected with error 13 however well it compresses, and consolidation, bucketing, and overflow math stay in logical bytes.
+- **Physical record size** — the bytes on storage after compression: what the `record_size()` expression and the object-size histograms report, which is the _opposite_ byte-space from the check. Validating a logical threshold on a compressed namespace means estimating sizes client-side or dividing measurements by the measured ratio. A physical-size overflow trigger fires late against a logical threshold and drifts with the ratio; prefer element counts as triggers.
+
+**What compression changes is where records comfortably sit in the Goldilocks band.** The upper band's costs are partly device costs — I/O per access, defragmentation copy load, storage footprint — and those scale with the ratio: a logically-100-KiB record at ratio 0.3 moves ~30 KiB per device read, write, and defrag copy, and more compressed records fit each write block and cache. What does **not** rescale: the **64-byte primary index entry** (metadata is never compressed, so consolidation beats tiny records by a wider margin — payload gets cheaper, index does not), **per-operation CPU** (the whole record is decompressed to operate on and recompressed to write, so CPU still follows logical size — write latency is affected more than read), **client wire bytes** (client↔server compression is a separate client policy, orthogonal to storage compression), and the **limits above**. Keep designing the distribution in logical bytes, and read compression as extra headroom for the slowly-changing consolidated upper end — not as permission for large records on hot write paths, where CPU replaces device I/O as the binding cost.
+
+**Ratios are data-dependent; measure, never assume.** `data_compression_ratio` reports compressed : uncompressed as a moving average over roughly the last 100K–1M written records — it lags data changes and does not describe the whole namespace. To evaluate a setting, write ~1M representative records and read the ratio; running different settings on different nodes to compare is supported for benchmarking. One vendor benchmark (Aerospike 4.5 announcement, 2018, mixed customer-sample data) shows the shape of the trade-off — not planning inputs:
+
+| Algorithm    | Ratio (compressed : uncompressed) | Insert throughput | Read throughput |
+| ------------ | --------------------------------- | ----------------- | --------------- |
+| lz4          | 0.659                             | −4%               | −6%             |
+| snappy       | 0.507                             | −13%              | −7%             |
+| zstd level 1 | 0.379                             | −11%              | −7%             |
+| zstd level 9 | 0.361                             | −75%              | −9%             |
+
+**zstd at level 1 is the usual sweet spot** — nearly level 9's ratio at a fraction of the write CPU. Real ratios vary widely: the same zstd-1 measured **0.328** on IoT MessagePack tuples (Source 1's workload), **~0.69–0.25** across user-profile stores (Source 2), and **AdTech customers commonly see 0.24–0.40 in production**. Repetitive content compresses best — repeated map-key strings in list-of-structs shapes ([path-expressions.md](path-expressions.md)) and repeated cleartext ID composites largely vanish on device, while random hex hashes are near-incompressible. That data-dependence shifts this guide's trade-offs as follows:
+
+- **Compact encodings and short IDs keep their logical-byte benefits and lose some device motivation.** Named map keys and cleartext composite IDs stop costing much on device, but still count in full against `max-record-size`, bucketing thresholds, client wire transfer, and per-op CPU. Compact in-record encodings (Sources 1–2) pay off twice — smaller logical size _and_ better compression.
+- **Pre-compressed blobs gain nothing** ([workload-archetypes.md](workload-archetypes.md) archetype A1): the server attempts compression on every write and discards the result. Leave compression off for blob-dominated namespaces, or store native CDTs and let the namespace compress them — which also keeps server-side operations available.
+- **Write amplification splits.** The device and replication components of a full-record rewrite scale with the ratio — replication, migration, and duplicate-resolution traffic carry the compressed storage format — while the client-wire component does not.
+
+**This is the only place in this guide that states compression facts and figures**; everywhere else says "physical record size" when it means compressed bytes on storage. For configuration details and current behavior, see the [storage compression docs](https://aerospike.com/docs/database/manage/namespace/storage/compression).
+
 ---
 
 ## Capacity planning (Database 7.1.0 and later)
@@ -140,6 +168,7 @@ The following summarizes the [Capacity planning guide](https://aerospike.com/doc
 - **Set index capacity:** Set indexes are **always in memory**. Per set index: **16 bytes × RF** per record in the indexed set; **16 MiB × RF** pre-allocated when the set index is created (covers first million records), distributed across nodes; **4 MiB × RF** overhead per set index, distributed across nodes. Beyond the first million records in a set, memory grows in **4 KiB micro-arena** increments (each 4 KiB indexes up to 256 records in one partition). Example: 1000 sets with set index, RF2 → 31.25 GiB initial stage + 8 GiB overhead across the cluster.
 - **Secondary index:** See [Secondary index capacity planning (6.0+)](#secondary-index) above and the [Secondary index capacity planning](https://aerospike.com/docs/database/manage/planning/capacity/secondary-indexes) page.
 - **Data storage:** From 7.0.0, in-memory data storage is **pre-allocated and static**. From **7.1.0**, **indexes-memory-budget** limits how much memory indexes can use. Record overhead is **39 bytes** (6.0+); storage formula includes bin overhead, key, set name, TTL, etc. — see the capacity guide. **64 MiB** (8 × 8 MiB write-blocks) is reserved per device; recommended minimum device size 128 MiB.
+- **Compression:** With storage compression enabled, physical data storage ≈ logical bytes × the measured `data_compression_ratio`. Primary, secondary, and set index memory are unchanged — metadata is never compressed. The defragmentation headroom below and the device term of the throughput formula apply to physical bytes; CPU and client-network terms follow logical size. See § Storage compression above.
 - **Defragmentation:** Plan to use no more than ~50% of storage by default (`defrag-lwm-pct`). Write-blocks in the **post-write-cache** (7.1.0+) are not defragmented; keep post-write-cache small relative to device size.
 - **Throughput:** `(records accessed per second) × (record size)`; plan so the cluster can handle full load with one node down.
 - **Provisioning:** See [Provisioning a cluster](https://aerospike.com/docs/database/manage/planning/capacity/provisioning) for examples.
@@ -349,7 +378,7 @@ One million sensors, one temperature reading per minute for a year (525,600 read
   - Minute: int, 0–1439 (minutes since midnight for that day).
   - Temperature: int, stored as value×10 (e.g. 62.1° → 621) for MessagePack compaction.
 - **List type:** Unordered (O(1) append); range reads use `list_get_by_value_interval` on the list.
-- **Size:** Up to 1440 tuples per record (~10KB uncompressed per record; compression reduces significantly). Keeps each record in the **target range of a few KiB** and well within the configured `max-record-size`; avoids the primary index cost of one 64-byte entry per reading.
+- **Size:** Up to 1440 tuples per record (~10KB logical size per record; storage compression shrinks the physical record size significantly — see § Storage compression). Keeps each record in the **target range of a few KiB** and well within the configured `max-record-size`; avoids the primary index cost of one 64-byte entry per reading.
 
 ### Foundational concepts applied
 
@@ -410,7 +439,7 @@ User profile store for **audience segmentation** (e.g. AdTech, real-time bidding
   - **segment_ttl:** Expiry encoded as integer — in the code, **hours since a fixed epoch** (e.g. 2019-01-01) for compact storage and range queries.
   - **attributes:** Optional map/list for per-segment metadata (e.g. source, flags); can be empty `{}`.
 - **Map order:** Maps are K-ordered (sorted by key) on the server. Key, index, rank, and value operations (including `map_get_by_value_range` for "all segments with TTL ≥ now" and `map_remove_by_value_range` for trim) all work on K-ordered storage. For user segment maps with frequent value-range queries, consider `PERSIST_INDEX` with `V_ORDERED` (persisted full index) to improve value-range operations from O(N + M) to O(log N + M). See [cdt-api.md](cdt-api.md) § Map types for the three map subtypes, `PERSIST_INDEX` options, and performance characteristics.
-- **Size:** One record holds all segments for one user. MessagePack serialization reduces size; EE compression (e.g. Zstandard) can yield ~0.69–0.25 ratio depending on data. Large users (e.g. thousands of segments) still fit within the configured `max-record-size` per record.
+- **Size:** One record holds all segments for one user. MessagePack serialization reduces size, and EE storage compression shrinks the physical record size further (this workload's measured ratios are quoted in § Storage compression). Large users (e.g. thousands of segments) still fit within the configured `max-record-size` per record.
 
 ### Foundational concepts applied
 
