@@ -25,7 +25,7 @@ Both are outputs of _your_ modeling work; this repo supplies the process and the
 
 ## Where this guide fits alongside `aerospike/agent-skills`
 
-Aerospike's agent guidance is split across two internal repos, and the boundary is **when in the lifecycle**, not what subject:
+Aerospike's agent guidance is split across two repos, and the boundary is **when in the lifecycle**, not what subject:
 
 |          | `aerospike/agent-skills`                                                  | this repo                                                       |
 | -------- | ------------------------------------------------------------------------- | --------------------------------------------------------------- |
@@ -51,7 +51,7 @@ id-selection-guidance.md        timestamp-bin-naming-guidance.md
 
 Renaming or removing any of them silently breaks the skill's escalation path — nothing in either repo will fail loudly. If a rename is necessary, update the skill's `SKILL.md` routing table and `references/ex-guide-escalation.md` in the same change.
 
-**This repo cannot be linked by URL from the skill.** `agent-skills` runs `skill-validator` in CI, which live-checks every URL. Both repos are internal, so a markdown link to `github.com/aerospike/data-modeling-guide` returns a non-200 and fails the build permanently. The skill therefore refers to this repo by name plus a `gh repo clone` command, and points its `doc:` frontmatter at the public [Aerospike data modeling docs](https://aerospike.com/docs/develop/data-modeling/). Keep it that way.
+**Linking this repo by URL from the skill depends on this repo being public.** `agent-skills` runs `skill-validator` in CI, which live-checks every markdown URL. While this repo is internal, a markdown link to `github.com/aerospike/data-modeling-guide` returns a non-200 and fails that build. The skill therefore refers to this repo by name plus a `gh repo clone` command, and points its `doc:` frontmatter at the public [Aerospike data modeling docs](https://aerospike.com/docs/develop/data-modeling/). Once both repos are public a markdown link is safe; until then, keep it as it is.
 
 ### The rule that keeps the two in sync — split by rate of change, not by topic
 
