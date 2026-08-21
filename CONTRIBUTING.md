@@ -57,7 +57,7 @@ Together they mean:
 **Commit signatures are deliberately not required.** The repository template
 enforces them, and that rule was removed here. Commit signing attests
 authorship of commit objects — valuable where commits feed a build that ships
-to customers and provenance must be auditable. This repository is internal
+to customers and provenance must be auditable. This repository is
 documentation with named code owners and pull-request review, so requiring
 every contributor to configure a GPG or SSH signing key costs more than it
 returns. Please do not re-add the rule without revisiting that trade-off.

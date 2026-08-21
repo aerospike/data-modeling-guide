@@ -257,7 +257,7 @@ Path expressions enable a **document-modeling paradigm** for Aerospike CDTs: sto
 
 This pattern applies the list-of-maps (list-of-structs) concept to **day-bucketed event timelines** such as notifications, activity feeds, or audit logs. It resolves the field-level filtering and modification limitations of both the ordered-list-of-tuples and map-keyed Pack 4 variants (see [new-app-modeling-checklist.md](new-app-modeling-checklist.md) § 5.7).
 
-**Experimentally validated** against Aerospike DB 8.1.1.1 — all operations below were tested and confirmed against the 8.1.1 preview. The 8.1.2 production release adds `mapKeysIn` and `andFilter` context types but does not change the operations used in this pattern. See the experiment savepoint (internal `ai_tools`: journal entry 2026-03-22, list-of-structs notification pattern) for full results, latencies, and trade-off analysis.
+**Experimentally validated** against Aerospike DB 8.1.1.1 — all operations below were tested and confirmed against the 8.1.1 preview. The 8.1.2 production release adds `mapKeysIn` and `andFilter` context types but does not change the operations used in this pattern.
 
 #### Structure
 
