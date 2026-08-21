@@ -76,25 +76,26 @@ type(scope): description
 - **scope** is optional, lowercase, in parentheses
 - **description** starts with a lowercase letter
 
-#### JIRA Ticket Requirement
+#### JIRA Tickets
 
-A JIRA ticket in square brackets is required for these types: **feat, fix, docs, ci, refactor**.
-This rule can be disabled by using the `skip-jira` label on the PR (commitlint still runs).
+Not required, ever. This is an open-source repository and outside contributors
+cannot see or open Aerospike JIRA tickets. Aerospike engineers may include a
+reference for their own tracking, but no check enforces it.
 
 #### Examples
 
 ```text
-feat(workflows): [INFRA-370] add integration test stage
-fix: [ENG-123] correct routing logic for edge cases
-docs(readme): [INFRA-451] update setup instructions
-ci: [INFRA-400] switch to shared reusable workflows
-chore(deps): bump shared-workflows to v3
-test: add unit tests for auth module
+feat(archetypes): add write-heavy counter archetype
+fix: correct the map complexity table for persisted indexes
+docs(readme): clarify the skill escalation boundary
+ci: switch to shared reusable workflows
+chore(deps): bump actions/checkout
+test: add coverage for the checklist parser
 ```
 
 #### Default Allowlisted Patterns
 
-The following PR title patterns bypass **both** commitlint type validation and the JIRA ticket requirement:
+The following PR title patterns bypass commitlint type validation:
 
 - **Dependabot**: `chore(deps): bump ...` (any type with `deps` scope)
 - **StepSecurity**: `[StepSecurity] ...`
