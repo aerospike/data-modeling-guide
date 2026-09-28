@@ -332,7 +332,7 @@ This pattern is documented here (in the path-expressions reference) rather than 
 
 ## Limits and performance
 
-- **Nesting depth:** Up to **15 levels** (same as CDT context limit).
+- **Nesting depth:** Up to **64 levels**. Database 8.2.0 and later limit List and Map nesting, and the number of context levels in a path, to 64.
 - **Elements:** No hard limit on number of elements, but very large CDTs (e.g. millions of elements) can increase latency; consider partitioning across records or using secondary indexes to narrow scope before path expressions.
 - **Performance factors:** Result size (MATCHING_TREE vs MAP_KEY), filter complexity, nesting depth, CDT size. Prefer server-side path filtering over full-record fetch + client filter when possible; benchmark with realistic data.
 
