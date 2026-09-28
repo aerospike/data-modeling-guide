@@ -288,7 +288,7 @@ The context types above each select a single element at each level. Path express
 
 - One expression per context level — `AND_FILTER` cannot be chained after another `AND_FILTER`.
 - Cannot be used after `ALL_CHILDREN` or `ALL_CHILDREN_WITH_FILTER`.
-- Not supported inside expression-wrapped operations (`CdtExp.selectByPath`). Use direct CDT operations (`CdtOperation.selectByPath` / `CdtOperation.modifyByPath`) instead.
+- Cannot be the first context; it filters what the preceding context selects.
 
 ### Example: drilling into a list
 

@@ -88,7 +88,7 @@ Same idea as CDT nested context (BY_MAP_KEY, etc.), but used here with **express
 - Only **one expression per level**. `Exp.and(exp1, exp2)` counts as one expression.
 - `andFilter` **cannot** be chained after another `andFilter` — combine conditions into a single `Exp.and(...)` instead.
 - `andFilter` **cannot** follow an `allChildren` or `allChildrenWithFilter` context (those already carry an expression).
-- `mapKeysIn` and `andFilter` are supported only with **direct CDT operations** (`CdtOperation.selectByPath` / `CdtOperation.modifyByPath`). They are **not** supported inside expression-wrapped operations (`CdtExp.selectByPath`).
+- `andFilter` **cannot** be the first context — it filters what the preceding context selects.
 - Multiple `mapKeysIn` + `andFilter` **pairs can be chained at successive nesting levels** in a single `selectByPath` call (e.g., select top-level keys, filter, then select inner keys and filter again at the deeper level).
 
 **Example (Java):**
@@ -146,7 +146,7 @@ Path expressions embedded **inside** the expression API. Used when:
 - **Expression index creation:** A `CdtExp.selectByPath` extracts values from nested structures (e.g. all license plates from a list-of-maps), and the resulting list is used to create a secondary index. Each extracted value becomes one SI entry.
 - **Pre-filtered input:** A `MapExp.getByKeyList` narrows a map to specific keys before `CdtExp.selectByPath` applies further path filtering. This was the 8.1.1 workaround for IN-list key selection before `mapKeysIn` was introduced in 8.1.2.
 
-**Key constraint:** `mapKeysIn` and `andFilter` are **not** supported inside `CdtExp.selectByPath`. They work only with direct `CdtOperation` operations. When using `CdtExp.selectByPath`, use `MapExp.getByKeyList` for key pre-filtering instead.
+It takes the same context vocabulary as the direct operations, including `mapKeysIn` and `andFilter` (8.1.2+).
 
 **Example — filter expression with CdtExp.selectByPath (Java):**
 
