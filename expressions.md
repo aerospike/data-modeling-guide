@@ -342,8 +342,6 @@ Path expressions can be used inside the expression API (`CdtExp.selectByPath`, `
 - **`CdtExp.modifyByPath`** modifies nested elements within an expression context and returns the modified collection. Used in operation expressions.
 - **`CdtOperation.selectByPath` / `CdtOperation.modifyByPath`** are CDT operations used directly in `operate()` calls, including query projection. They act on the record in-place and return data under a bin name.
 
-**Constraint:** `AND_FILTER` context (8.1.2) is not supported inside `CdtExp.selectByPath`. Use `CdtOperation.selectByPath` instead when `AND_FILTER` is needed.
-
 ---
 
 ## 8.1.2 additions
