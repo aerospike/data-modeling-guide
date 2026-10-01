@@ -90,6 +90,7 @@ Same idea as CDT nested context (BY_MAP_KEY, etc.), but used here with **express
 - `andFilter` **cannot** follow an `allChildren` or `allChildrenWithFilter` context (those already carry an expression).
 - `andFilter` **cannot** be the first context — it filters what the preceding context selects.
 - Multiple `mapKeysIn` + `andFilter` **pairs can be chained at successive nesting levels** in a single `selectByPath` call (e.g., select top-level keys, filter, then select inner keys and filter again at the deeper level).
+- `mapKeysIn` selects from maps only; a list at that level fails the call.
 
 **Example (Java):**
 
@@ -146,7 +147,7 @@ Path expressions embedded **inside** the expression API. Used when:
 - **Expression index creation:** A `CdtExp.selectByPath` extracts values from nested structures (e.g. all license plates from a list-of-maps), and the resulting list is used to create a secondary index. Each extracted value becomes one SI entry.
 - **Pre-filtered input:** A `MapExp.getByKeyList` narrows a map to specific keys before `CdtExp.selectByPath` applies further path filtering. This was the 8.1.1 workaround for IN-list key selection before `mapKeysIn` was introduced in 8.1.2.
 
-It takes the same context vocabulary as the direct operations, including `mapKeysIn` and `andFilter` (8.1.2+).
+`CdtExp.selectByPath` and `CdtExp.modifyByPath` take the same context vocabulary as the direct operations, including `mapKeysIn` and `andFilter` (8.1.2+). A path that breaks an `andFilter` rule is refused here too, but quietly: a filter expression matches nothing and an expression index stays empty. Try a new path as a direct `CdtOperation.selectByPath` first.
 
 **Example — filter expression with CdtExp.selectByPath (Java):**
 
@@ -332,7 +333,7 @@ This pattern is documented here (in the path-expressions reference) rather than 
 
 ## Limits and performance
 
-- **Nesting depth:** Up to **64 levels**. Database 8.2.0 and later limit List and Map nesting, and the number of context levels in a path, to 64.
+- **Nesting depth:** A path takes at most **64** contexts; each `andFilter` counts as one. Database 8.2.0 and later also refuse a List or Map value nested more than 64 levels deep. Keep documents within 64 levels.
 - **Elements:** No hard limit on number of elements, but very large CDTs (e.g. millions of elements) can increase latency; consider partitioning across records or using secondary indexes to narrow scope before path expressions.
 - **Performance factors:** Result size (MATCHING_TREE vs MAP_KEY), filter complexity, nesting depth, CDT size. Prefer server-side path filtering over full-record fetch + client filter when possible; benchmark with realistic data.
 
