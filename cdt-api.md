@@ -243,7 +243,7 @@ A secondary index (SI) on a map bin creates one index entry per map element. SI 
 
 When modeling nested Lists/Maps (CDTs), define a depth contract before finalizing schema:
 
-- platform max nesting/path depth (for your DB/version/features),
+- platform max nesting/path depth (for your DB/version/features; see [path-expressions.md § Limits and performance](path-expressions.md#limits-and-performance)),
 - application max depth (with safety margin),
 - behavior at cap (`reject`, `split`, or `overflow`).
 
