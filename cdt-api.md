@@ -83,7 +83,7 @@ Worst-case complexity for modeling-relevant operations. N = element count, M = r
 
 ### Secondary index on list elements
 
-A secondary index (SI) on a list bin creates one index entry per list element. Elements are type-checked against the index data type (numeric, string, or GeoJSON); non-matching types are skipped.
+A secondary index (SI) on a list bin creates one index entry per list element. Elements are type-checked against the index data type (integer, string, or GeoJSON); non-matching types are skipped.
 
 - List indexing supported at any depth (DB 6.1.0+; prior versions: top-level only).
 - Known limitation: range queries on list-indexed bins can return duplicate records when a list contains multiple values that fall within the query range.
@@ -114,7 +114,7 @@ Aerospike Maps have three subtypes that differ in how elements are ordered and w
 
 Persist-index is only supported for top-level maps. Nested map persist-index is silently ignored. KV-ordered without a persisted index has no performance advantage over K-ordered without a persisted index for rank and value operations — both fall back to a heap/scan. The advantage of KV-ordered without persist is that converting to KV-ordered with persist is O(1) if elements are already in value order.
 
-**Equality comparison caveat.** Only ordered maps (K-ordered or KV-ordered) can be reliably compared for equality. Unordered maps have no canonical byte ordering, so two unordered maps with the same logical content can have different wire representations. Comparisons involving unordered maps — whether through an expression `eq` operator or through `*_by_value` / `*_by_value_list` operations — may return false even when the maps contain the same elements. This matters for list-of-maps patterns using `ADD_UNIQUE`.
+**Map equality.** The server compares maps by their serialized bytes, so key order matters and the map subtype does not. Every map in a CDT write payload or whole-bin write is key-sorted on the way in, so `ADD_UNIQUE` on a list of maps detects duplicates whatever order or subtype the client sent; a map declared K-ordered with unsorted keys is rejected. Build map arguments to `*_by_value` and `*_by_value_list` operations with keys in sorted order (a K-ordered map does this). Expression comparison operators (`eq`, `ne`, `lt`, `le`, `gt`, `ge`) compare maps by content on Database 8.2.0 and later; before 8.2.0, a comparison with an operand that is or contains a map not declared K-ordered evaluates to `unknown`, so a filter built on it matches no records. Elements stored before 7.0, or by an expression write that preserved selection order, may not be canonical, and `ADD_UNIQUE` can miss duplicates of them. Subtype still decides indexing and performance.
 
 #### Worked example: index and rank with tied values
 
@@ -227,7 +227,7 @@ Worst-case complexity for modeling-relevant operations. N = element count, M = r
 
 ### Secondary index on map keys/values
 
-A secondary index (SI) on a map bin creates one index entry per map element. SI can index on map keys (`MAPKEYS` source type) or map values (`MAPVALUES` source type). Elements are type-checked against the index data type (numeric, string, or GeoJSON); non-matching types are skipped.
+A secondary index (SI) on a map bin creates one index entry per map element. SI can index on map keys (`MAPKEYS` source type) or map values (`MAPVALUES` source type). Elements are type-checked against the index data type (integer, string, or GeoJSON); non-matching types are skipped.
 
 - Map indexing supported at any depth (DB 6.1.0+; prior versions: top-level only).
 - Known limitation: range queries on map-indexed bins can return duplicate records when a map contains multiple values that fall within the query range.
@@ -241,11 +241,17 @@ A secondary index (SI) on a map bin creates one index entry per map element. SI 
 
 ### Depth contract (modeling guardrail)
 
+Nesting is bounded. Database 8.2.0 and later accept Lists and Maps nested up to **64 levels**: the top-level List or Map in a bin is level 1, each nested List or Map adds one, and scalars do not count. A path expression context is limited to 64 as well (each `andFilter` counts as one). The server checks the value in each request, not the depth that results from writing it through a context, so the application must hold the whole bin to the limit. A whole-bin write over the limit fails with `AS_ERR_UNKNOWN` and a CDT operation with `AS_ERR_PARAMETER`; neither carries a subcode.
+
+Nothing bounded nesting before 8.2.0, but a value deeper than 64 levels fails wherever it is sent over the wire to an 8.2.0 or later server: a client read-modify-write of the bin, XDR to an 8.2.0 or later destination (the source abandons the record), and a restore of an older backup. Cap depth on every version.
+
 When modeling nested Lists/Maps (CDTs), define a depth contract before finalizing schema:
 
-- platform max nesting/path depth (for your DB/version/features; see [path-expressions.md § Limits and performance](path-expressions.md#limits-and-performance)),
+- platform max nesting depth (above),
 - application max depth (with safety margin),
 - behavior at cap (`reject`, `split`, or `overflow`).
+
+Count levels per structural step, not per domain level: a tree whose node is a map holding a `replies` map spends two CDT levels per reply depth, so 64 levels is roughly 30 reply levels.
 
 If platform limit or app cap is unknown, mark `BLOCKED_MISSING_INPUT` and do not finalize the model.
 
@@ -329,7 +335,7 @@ List: `[0, 1, [2, [3, 4], 5, 6], 7, [8, 9]]`
 ### Value comparison
 
 - **List:** Compare element by element from index 0; then by length. E.g. `[1,2] < [1,3]`, `[1,2] < [1,2,1]`.
-- **Map:** By element count, then keys in stored order, then values when keys match. (Pre-4.3.1: known issues for different-length maps/lists.) Map comparison requires a canonical byte ordering, which only ordered maps (K-ordered or KV-ordered) provide. Unordered maps cannot be reliably compared for equality — see the equality comparison caveat in Map types and terminology above.
+- **Map:** By element count, then keys in stored order, then values when keys match. (Pre-4.3.1: known issues for different-length maps/lists.) How subtype and key order affect equality is covered under **Map equality** in Map types and terminology above.
 
 **Map comparison worked example:** Given two maps A = `{x:10, y:20}` and B = `{x:10, y:30}`:
 

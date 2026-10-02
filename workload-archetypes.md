@@ -762,6 +762,8 @@ A complete tree structure consolidated into a single record using deeply nested 
 | **CDT usage**     | Heavy — the record IS a nested CDT structure                                                                    |
 | **Nesting depth** | 3–8 levels (tree depth: root map → comment map → replies map → nested replies...)                               |
 
+Each reply level costs two CDT levels (a comment map and its `replies` map), so reply depth needs an explicit cap; see [cdt-api.md](cdt-api.md) § Depth contract.
+
 **Bin layout (SubMilliPost `content_comments` example):**
 
 | Bin             | Type                             | Size at p95 | Purpose                                                                                                                          |
@@ -850,14 +852,14 @@ Records holding an unordered list of structured maps, where the record key encod
 
 ### Write Operations
 
-| Attribute                            | Value                                                                                                  |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| **Write operation — new event**      | `operate()` with `list_append("items", {id: ..., type: ..., actor: ..., ...})`                         |
-| **Bytes written per write**          | ~160 bytes of new data (one map element) appended to the list. Full record rewritten on storage.       |
-| **Bins modified per write**          | 1                                                                                                      |
-| **Concurrency control**              | Atomic single-record. The list element map MUST be K-ordered for byte-equality dedup via `ADD_UNIQUE`. |
-| **Write frequency**                  | Moderate — bounded by social activity. At p99, ~200 events per user per day.                           |
-| **Server-side computation on write** | List append (O(1) for unordered list)                                                                  |
+| Attribute                            | Value                                                                                            |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| **Write operation — new event**      | `operate()` with `list_append("items", {id: ..., type: ..., actor: ..., ...})`                   |
+| **Bytes written per write**          | ~160 bytes of new data (one map element) appended to the list. Full record rewritten on storage. |
+| **Bins modified per write**          | 1                                                                                                |
+| **Concurrency control**              | Atomic single-record. `ADD_UNIQUE` dedups the element maps whatever order the client sent.       |
+| **Write frequency**                  | Moderate — bounded by social activity. At p99, ~200 events per user per day.                     |
+| **Server-side computation on write** | List append (O(1) for unordered list)                                                            |
 
 | Attribute                              | Value                                                                                                                |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |

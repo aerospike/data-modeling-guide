@@ -161,6 +161,7 @@ For each bin:
 - Typical and max size contribution.
 - Update pattern (append-heavy, random updates, counters, immutable).
 - Query shape against this bin (value/range/rank/list membership).
+- For text bins: a String bin holds valid UTF-8 text, and nothing in the database enforces it (a plain write still accepts invalid bytes, and later string operations on that bin fail with `AS_ERR_INVALID_ENCODING`); opaque bytes belong in a Blob bin. For every text field that is compared or looked up, state the normalization form (NFC) and any case folding applied on write, because comparison operators compare UTF-8 bytes while search operations treat canonically equivalent text as equal.
 - Compatibility and evolution notes (optional bins, default values, migration path).
 
 Naming rule: prefer descriptive bin names by default. Only abbreviate when needed to fit the 15-character bin-name limit.
@@ -295,7 +296,7 @@ A single entity group may require multiple packs (e.g., comments use Pack 3 for 
 
 Prefer record granularity where every declared read, write, query, and mutation maps to a concrete server-side Aerospike operation (single get, operate, SI query, batch get). Consolidation reduces PI cost and improves read locality, but it is a means to those ends, not an end in itself.
 
-**Normal vs problematic client-side work.** Client-side assembly of multiple server results for display is normal — for example, batch-reading several day buckets and merging them into a feed page, or reading a comment tree and sorting root comments by rank. These are composition tasks that combine server-provided data. Client-side workarounds are different: set-difference logic for read/unread state, multi-step read-compute-write for mutations the server could handle at a different granularity, or client-side filtering to compensate for a storage layout that cannot serve a declared operation directly. When consolidated storage forces such workarounds, that is a signal to reconsider granularity.
+**Normal vs problematic client-side work.** Client-side assembly of multiple server results for display is normal — for example, batch-reading several day buckets and merging them into a feed page, or reading a comment tree and sorting root comments by rank. These are composition tasks that combine server-provided data. Client-side workarounds are different: set-difference logic for read/unread state, multi-step read-compute-write for mutations the server could handle at a different granularity (text transforms such as replace, case change, or trim run server-side on a String bin on Database 8.2.0 and later), or client-side filtering to compensate for a storage layout that cannot serve a declared operation directly. When consolidated storage forces such workarounds, that is a signal to reconsider granularity.
 
 **Bounded PI changes the calculus.** The PI savings from consolidation are most significant for permanent, accumulating records. For TTL-bounded data (event timelines, notifications, session state), the PI cost of a simpler granularity is capped: `event_rate_p99 × ttl_days × 64 bytes`, all auto-expiring. When the bounded PI cost is acceptable and the simpler granularity serves all declared operations as direct server-side calls, the PI savings from consolidation may not justify the operational complexity it introduces.
 
@@ -723,6 +724,7 @@ The distinction matters: if the application likes a comment by calling `map_put`
 - ordering contract (where/how ordering is maintained)
 - mutation paths for create/edit/delete, including subtree behavior
 - split/shard triggers for size/contention
+- maximum tree depth, CDT levels consumed per tree level, and behavior at the cap (reject, flatten onto the parent, or split the subtree); see [cdt-api.md](cdt-api.md) § Depth contract
 - migration path across hierarchy shapes
 - read/write share between whole-tree and single-node operations (approximate percentages)
 - if split is selected despite Band A metrics: override evidence and rationale
@@ -732,6 +734,7 @@ The distinction matters: if the application likes a comment by calling `map_put`
 1. lower risk for dominant traversal and mutation operations
 2. lower root-level contention and growth risk
 3. simpler delete/cascade correctness
+4. less exposure to the CDT depth limit when tree depth is driven by user behavior (adjacency-per-node nests nothing)
 
 #### Ordering contract: sort-dimension pattern
 
@@ -1274,7 +1277,7 @@ After the developer walkthrough (5.9) and implementer review (5.9.2) pass for an
 
 For each index, require:
 
-- Query it serves.
+- Query it serves. If the query needs a range, the indexed bin must be an integer; string and blob indexes serve equality only.
 - Why key+batch is insufficient.
 - Expected indexed population and selectivity.
 - Capacity estimate (entry count, overhead, replication effect).
@@ -1292,11 +1295,12 @@ Defaults:
 
 Before using advanced features, lock DB and client versions and define a fallback.
 
-| Feature                       | Minimum version                                                                                                                                       | Assumptions                                                      | Fallback if unavailable                                                                                        |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **Multi-record transactions** | Aerospike DB 8+ (strong-consistency namespace)                                                                                                        | Atomic multi-record updates required for relationship integrity. | AP flow with idempotent writes + verify-after-write + background reconciliation.                               |
-| **Expression indexes**        | Aerospike DB 8.1+                                                                                                                                     | Need sparse or computed-value index.                             | Persist derived value in a regular bin and index that bin, or redesign to key+batch.                           |
-| **Path expressions**          | Aerospike DB 8.1.2+ (production). 8.1.1 was preview; 8.1.2 adds `mapKeysIn`, `andFilter` context types and is the documented production prerequisite. | Nested list/map filtering or indexing in-place.                  | Denormalize selected fields into dedicated bins/records; use CDT context + classic expressions where possible. |
+| Feature                               | Minimum version                                                                                                                                       | Assumptions                                                        | Fallback if unavailable                                                                                        |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| **Multi-record transactions**         | Aerospike DB 8+ (strong-consistency namespace)                                                                                                        | Atomic multi-record updates required for relationship integrity.   | AP flow with idempotent writes + verify-after-write + background reconciliation.                               |
+| **Expression indexes**                | Aerospike DB 8.1+                                                                                                                                     | Need sparse or computed-value index.                               | Persist derived value in a regular bin and index that bin, or redesign to key+batch.                           |
+| **Path expressions**                  | Aerospike DB 8.1.2+ (production). 8.1.1 was preview; 8.1.2 adds `mapKeysIn`, `andFilter` context types and is the documented production prerequisite. | Nested list/map filtering or indexing in-place.                    | Denormalize selected fields into dedicated bins/records; use CDT context + classic expressions where possible. |
+| **String operations and expressions** | Aerospike DB 8.2.0 on **every** node, and a client with string support (see the client matrix).                                                       | Server-side text transforms on UTF-8 data; normalization on write. | Client-side read-modify-write guarded by generation CAS, or a persisted derived bin.                           |
 
 Also verify client support against the client matrix for your language/runtime.
 
@@ -1309,8 +1313,9 @@ Also verify client support against the client matrix for your language/runtime.
 Define guardrails up front:
 
 - Target record size band for normal traffic — typically 1–128 KiB where practical, and stated as a **distribution**: the bulk of records in single-digit KiB, with the upper end reserved for outliers and slowly-changing consolidated structures. Give the expected p50 and p99 record size per set, not just the band.
-- **Justification for any record class expected to exceed ~50 KiB at p99.** State what makes that data slowly-changing and what its per-record update rate is. Every update rewrites the whole record, so size multiplies against write rate; a large record on a hot write path is a design defect even when it fits.
+- **Justification for any record class expected to exceed ~50 KiB at p99.** State what makes that data slowly-changing and what its per-record update rate is. Every update rewrites the whole record, so size multiplies against write rate; a large record on a hot write path is a design defect even when it fits. Wire compression and delta replication lower only the replication network cost; see [concepts-and-patterns.md](concepts-and-patterns.md) § Storage compression (Enterprise).
 - **Absolute max record safety threshold**, derived from the namespace's configured `max-record-size` — not a fixed constant. State the configured value, the safety threshold you will design to (meaningfully below it, since defrag and I/O cost rise well before the hard stop), and what happens when a record crosses that threshold. If the configured value is unknown, see the `max-record-size` required input in section 0.
+- Maximum CDT nesting depth and the behavior at the cap (see [cdt-api.md](cdt-api.md) § Depth contract).
 - List/map growth triggers for split/overflow/shard.
 - Batch-size bounds for key fan-out operations.
 - Hot-key detection threshold (write error rate/latency/KEY_BUSY signals). For the mitigation pattern, see [concepts-and-patterns.md](concepts-and-patterns.md) § Shard-on-demand pattern.
@@ -1338,6 +1343,7 @@ Run model validation with representative synthetic data before implementation fr
 - Hot-key behavior and sharding fallback.
 - Delete/cascade correctness under retries and partial completion.
 - Version-gated feature unavailable (fallback path exercise).
+- Over-limit writes (record size, nesting depth): confirm the application takes its decided path at the cap. Run these cases with client error details enabled at verbosity 2 or 3 (Database 8.2.0 and later) so the cause is readable, and dispatch on the (status, subcode) pair, not the subcode alone.
 
 ### Acceptance gate
 
