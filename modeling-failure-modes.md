@@ -50,7 +50,7 @@ Values that a cluster operator can change (`max-record-size`) or that are gated 
 
 **Detect.** Trace each write. Any operation that reads a bin, changes part of it in application code, and writes the whole bin back is a read-modify-write that a CDT operation should have replaced.
 
-**Why.** Lists and maps support append, remove-by-value, get-by-value-range, get-by-index-range and more, at arbitrary nesting depth via context. Pulling a collection to the client to edit it spends network and latency on work the server does under the record lock — and loses atomicity.
+**Why.** Lists and maps support append, remove-by-value, get-by-value-range, get-by-index-range and more, at nested depth via context. Pulling a collection to the client to edit it spends network and latency on work the server does under the record lock — and loses atomicity.
 
 **Instead.** Use the List and Map operation APIs with nested context; combine several in one `operate()` call so they apply atomically. → [cdt-api.md](cdt-api.md)
 

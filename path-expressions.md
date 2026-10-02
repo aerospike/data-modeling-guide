@@ -333,7 +333,7 @@ This pattern is documented here (in the path-expressions reference) rather than 
 
 ## Limits and performance
 
-- **Nesting depth:** A path takes at most **64** contexts; each `andFilter` counts as one. Database 8.2.0 and later also refuse a List or Map value nested more than 64 levels deep. Keep documents within 64 levels.
+- **Nesting depth:** A path takes at most **64** contexts; each `andFilter` counts as one. The documents themselves are bounded too; see [cdt-api.md § Depth contract](cdt-api.md#depth-contract-modeling-guardrail).
 - **Elements:** No hard limit on number of elements, but very large CDTs (e.g. millions of elements) can increase latency; consider partitioning across records or using secondary indexes to narrow scope before path expressions.
 - **Performance factors:** Result size (MATCHING_TREE vs MAP_KEY), filter complexity, nesting depth, CDT size. Prefer server-side path filtering over full-record fetch + client filter when possible; benchmark with realistic data.
 

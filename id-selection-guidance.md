@@ -77,7 +77,7 @@ For every deterministic ID, specify:
 
 - Algorithm and exact variant (example: `xxHash64`).
 - Seed (example: `0`).
-- Canonical input string recipe and delimiter.
+- Canonical input string recipe and delimiter. For user-supplied text components (handles, emails), also the Unicode normalization form (NFC) and any case folding, because the digest is computed from the key bytes the client sends.
 - Canonical timestamp format and precision (example: epoch milliseconds decimal string). If the contract uses `created_at_canonical` or similar placeholder terminology, the spec must resolve this to an explicit format (e.g., epoch milliseconds decimal string, ISO-8601 compact `YYYYMMDDTHHmmssSSSZ`) before the ID contract is implementation-ready. An unresolved placeholder is a `BLOCKED_MISSING_INPUT`.
 - Output encoding and length (example: lowercase hex, 16 chars).
 - Allowed character set.
